@@ -839,7 +839,7 @@ export function useAtlas() {
       pane.style.pointerEvents = 'none'
     }
 
-    const routeColor = dark ? '#fbbf24' : '#d97706'
+    const routeColor = dark ? '#f1f5f9' : '#1e1e2e'
     const lines: L.Polyline[] = []
     for (let i = 0; i < coords.length - 1; i++) {
       const a = coords[i], b = coords[i + 1]
@@ -848,9 +848,8 @@ export function useAtlas() {
         lines.push(L.polyline(arc, {
           pane: 'bucketRoutePane',
           color: routeColor,
-          weight: 2,
-          opacity: 0.55,
-          dashArray: '6 4',
+          weight: 2.5,
+          opacity: 0.8,
           lineCap: 'round',
           lineJoin: 'round',
           interactive: false,
