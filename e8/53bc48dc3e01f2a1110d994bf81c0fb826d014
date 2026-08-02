@@ -1,0 +1,26 @@
+client/src/pages/atlas/atlasModel.ts
+  s_8bfc27a95d8496::t_495fa7af1743f7 53-78
+client/src/pages/atlas/useAtlas.ts
+  s_8bfc27a95d8496::t_5c55f9d3b10dee 811-863
+  s_8bfc27a95d8496::t_391efdfa1eaa4a 8-9
+  s_8bfc27a95d8496::t_cec76eca11e6d8 107
+client/src/pages/atlas/atlasModel.test.ts
+  s_8bfc27a95d8496::t_90a4b75006cd46 40-75
+  s_8bfc27a95d8496::t_914e19a408ee0e 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "e853bc48dc3e01f2a1110d994bf81c0fb826d014",
+  "prompts": {},
+  "sessions": {
+    "s_8bfc27a95d8496": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "35c6a004-e4d1-4af9-bbf6-fcb8a7b4269e",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
