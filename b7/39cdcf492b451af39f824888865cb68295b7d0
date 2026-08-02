@@ -1,0 +1,39 @@
+server/src/db/migrations.ts
+  s_12188369743dcf::t_57d53dbd882abc 3704-3723
+server/src/scheduler.ts
+  s_12188369743dcf::t_8666710ba1f6c5 411-427,438-441,451,454
+  s_12188369743dcf::t_ad8a6f8384e05f 428-437
+server/src/index.ts
+  s_12188369743dcf::t_ffea53bddde5a5 84
+server/src/services/diplomatieService.ts
+  s_12188369743dcf::t_bc3955ece11365 99-103,107
+  s_12188369743dcf::t_36fd759bded74e 286-288,290-302,305-307
+  s_12188369743dcf::t_937e5e7913c387 2-3,53-63,66-83,93-98,104-106,108,234-244,246-249,251-283,303,309,311-322,325-329,331-344,346-353,357,362-363,365,369,374-375,377-378
+  s_ef44e1a5a7cb2f::t_02b4bd43c2b173 109
+server/tests/unit/services/diplomatieService.test.ts
+  s_12188369743dcf::t_1d7c795edfd92a 1-58,63-65,69,75,86,91,96,101,106,111,115-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "b739cdcf492b451af39f824888865cb68295b7d0",
+  "prompts": {},
+  "sessions": {
+    "s_12188369743dcf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "938458be-0b1f-458a-bbd7-0bfaccde0cdd",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_ef44e1a5a7cb2f": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7d16262a-07b4-4bbb-baee-c9dbf1821d1f",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
