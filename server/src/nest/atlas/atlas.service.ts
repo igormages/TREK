@@ -14,6 +14,11 @@ import {
   updateBucketItem,
   deleteBucketItem,
 } from '../../services/atlasService';
+import {
+  getAllAdvisoryLevels,
+  getCountrySummary,
+  getCountryDetail,
+} from '../../services/diplomatieService';
 
 type CreateBucketData = Parameters<typeof createBucketItem>[1];
 type UpdateBucketData = Parameters<typeof updateBucketItem>[2];
@@ -76,5 +81,17 @@ export class AtlasService {
 
   deleteBucketItem(userId: number, itemId: string): boolean {
     return deleteBucketItem(userId, itemId);
+  }
+
+  diplomatieLevels() {
+    return getAllAdvisoryLevels();
+  }
+
+  diplomatieSummary(code: string) {
+    return getCountrySummary(code);
+  }
+
+  diplomatieDetail(code: string) {
+    return getCountryDetail(code);
   }
 }

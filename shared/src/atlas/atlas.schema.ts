@@ -277,3 +277,39 @@ export function continentForCountry(code: string | null | undefined): string {
   if (!code) return 'Other';
   return CONTINENT_MAP[code.toUpperCase()] || 'Other';
 }
+
+/** France Diplomatie travel advisory level. */
+export const diplomatieAdvisoryLevelSchema = z.enum(['red', 'orange', 'yellow', 'green', 'unknown']);
+export type DiplomatieAdvisoryLevel = z.infer<typeof diplomatieAdvisoryLevelSchema>;
+
+export const diplomatieSummarySchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  level: diplomatieAdvisoryLevelSchema,
+  levelLabel: z.string(),
+  risks: z.string(),
+  visa: z.string(),
+  otherInfo: z.string(),
+  lastUpdated: z.string().nullable(),
+  sourceUrl: z.string(),
+});
+export type DiplomatieSummary = z.infer<typeof diplomatieSummarySchema>;
+
+export const diplomatieDetailSectionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  html: z.string(),
+});
+
+export const diplomatieDetailSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  sections: z.array(diplomatieDetailSectionSchema),
+  sourceUrl: z.string(),
+});
+export type DiplomatieDetail = z.infer<typeof diplomatieDetailSchema>;
+
+export const diplomatieLevelsResponseSchema = z.object({
+  levels: z.record(z.string(), diplomatieAdvisoryLevelSchema),
+});
+export type DiplomatieLevelsResponse = z.infer<typeof diplomatieLevelsResponseSchema>;

@@ -1,0 +1,55 @@
+name: Terraform Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Tapez APPLY pour confirmer"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    if: github.repository == 'igormages/TREK' && github.event.inputs.confirm == 'APPLY'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        env:
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          TF_VAR_cloudflare_api_key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          TF_VAR_cloudflare_email: ${{ secrets.CLOUDFLARE_EMAIL }}
+          TF_VAR_admin_email: ${{ secrets.TREK_ADMIN_EMAIL }}
+          TF_VAR_admin_password: ${{ secrets.TREK_ADMIN_PASSWORD }}
+          TF_VAR_encryption_key: ${{ secrets.TREK_ENCRYPTION_KEY }}
+          TF_VAR_ssh_authorized_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform apply
+        env:
+          SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+          SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+          SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+          TF_VAR_cloudflare_api_key: ${{ secrets.CLOUDFLARE_API_KEY }}
+          TF_VAR_cloudflare_email: ${{ secrets.CLOUDFLARE_EMAIL }}
+          TF_VAR_admin_email: ${{ secrets.TREK_ADMIN_EMAIL }}
+          TF_VAR_admin_password: ${{ secrets.TREK_ADMIN_PASSWORD }}
+          TF_VAR_encryption_key: ${{ secrets.TREK_ENCRYPTION_KEY }}
+          TF_VAR_ssh_authorized_key: ${{ secrets.SSH_PUBLIC_KEY }}
+        run: terraform apply -input=false -auto-approve tfplan

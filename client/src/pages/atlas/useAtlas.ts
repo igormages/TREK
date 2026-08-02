@@ -6,7 +6,15 @@ import apiClient, { mapsApi, pluginsApi, type PluginAtlasLayer } from '../../api
 import L from 'leaflet'
 import type { GeoJsonFeatureCollection } from '../../types'
 import { A2_TO_A3, normalizeRegionName, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
-import { continentForCountry } from '@trek/shared'
+import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail } from '@trek/shared'
+
+const ADVISORY_COLORS: Record<DiplomatieAdvisoryLevel, string> = {
+  red: '#ef4444',
+  orange: '#f97316',
+  yellow: '#eab308',
+  green: '#22c55e',
+  unknown: 'transparent',
+}
 
 function useCountryNames(language: string): (code: string) => string {
   const [resolver, setResolver] = useState<(code: string) => string>(() => (code: string) => code)
@@ -70,6 +78,7 @@ export function useAtlas() {
   const [visitedRegions, setVisitedRegions] = useState<Record<string, { code: string; name: string; placeCount: number; manuallyMarked?: boolean }[]>>({})
   const [pluginLayers, setPluginLayers] = useState<PluginAtlasLayer[]>([])
   const pluginLayerRef = useRef<L.GeoJSON | null>(null)
+  const diplomatieLayerRef = useRef<L.GeoJSON | null>(null)
   const regionLayerRef = useRef<L.GeoJSON | null>(null)
   const regionGeoCache = useRef<Record<string, GeoJsonFeatureCollection>>({})
   const [showRegions, setShowRegions] = useState(false)
@@ -77,6 +86,7 @@ export function useAtlas() {
   const regionTooltipRef = useRef<HTMLDivElement>(null)
   const loadCountryDetailRef = useRef<(code: string) => void>(() => {})
   const handleMarkCountryRef = useRef<(code: string, name: string) => void>(() => {})
+  const openDiplomatieRef = useRef<(code: string) => void>(() => {})
   const setConfirmActionRef = useRef<typeof setConfirmAction>(() => {})
   const [confirmAction, setConfirmAction] = useState<{ type: 'mark' | 'unmark' | 'choose' | 'bucket' | 'choose-region' | 'unmark-region'; code: string; name: string; regionCode?: string; countryName?: string } | null>(null)
   const [bucketMonth, setBucketMonth] = useState(0)
@@ -97,6 +107,15 @@ export function useAtlas() {
   const [atlas_country_search, set_atlas_country_search] = useState('')
   const [atlas_country_results, set_atlas_country_results] = useState<{ code: string; label: string }[]>([])
   const [atlas_country_open, set_atlas_country_open] = useState(false)
+
+  // Diplomatie travel advisories
+  const [advisoryLevels, setAdvisoryLevels] = useState<Record<string, DiplomatieAdvisoryLevel>>({})
+  const [diplomatieSummary, setDiplomatieSummary] = useState<DiplomatieSummary | null>(null)
+  const [diplomatieDetail, setDiplomatieDetail] = useState<DiplomatieDetail | null>(null)
+  const [diplomatieCountry, setDiplomatieCountry] = useState<string | null>(null)
+  const [diplomatieLoading, setDiplomatieLoading] = useState(false)
+  const [showDiplomatieDetail, setShowDiplomatieDetail] = useState(false)
+  const [diplomatieDetailLoading, setDiplomatieDetailLoading] = useState(false)
 
   const atlas_country_options = useMemo(() => {
     if (!geoData) return []
@@ -173,6 +192,26 @@ export function useAtlas() {
     pluginsApi.atlasLayers()
       .then(r => setPluginLayers(r.layers || []))
       .catch(() => setPluginLayers([]))
+  }, [])
+
+  // Load France Diplomatie advisory levels for map hatching (poll until warm)
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      apiClient.get('/addons/atlas/diplomatie/levels')
+        .then(r => {
+          if (cancelled) return
+          const levels = r.data?.levels || {}
+          setAdvisoryLevels(levels)
+          // Re-poll while cache is still warming (partial results)
+          if (Object.keys(levels).length < 50) {
+            setTimeout(load, 10000)
+          }
+        })
+        .catch(() => {})
+    }
+    load()
+    return () => { cancelled = true }
   }, [])
 
   // Load admin-1 GeoJSON for countries visible in the current viewport
@@ -359,11 +398,7 @@ export function useAtlas() {
             // far out in the ocean instead of over the area being hovered.
             sticky: true, permanent: false, className: 'atlas-tooltip', direction: 'top', offset: [0, -10], opacity: 1
           })
-          layer.on('click', () => {
-            if (c.placeCount === 0 && c.tripCount === 0) {
-              handleUnmarkCountry(c.code)
-            }
-          })
+          layer.on('click', () => openDiplomatieRef.current(c.code))
           layer.on('mouseover', (e) => {
             e.target.setStyle({ fillOpacity: 0.9, weight: 2, color: dark ? '#818cf8' : '#4f46e5' })
           })
@@ -382,7 +417,7 @@ export function useAtlas() {
             layer.bindTooltip(`<div style="font-size:12px;font-weight:600">${name}</div>`, {
               sticky: true, className: 'atlas-tooltip', direction: 'top', offset: [0, -10], opacity: 1
             })
-            layer.on('click', () => handleMarkCountry(countryCode, name))
+            layer.on('click', () => openDiplomatieRef.current(countryCode))
             layer.on('mouseover', (e) => {
               e.target.setStyle({ fillOpacity: 0.5, weight: 1.5, color: dark ? '#555' : '#94a3b8' })
             })
@@ -397,6 +432,47 @@ export function useAtlas() {
     // Restore map view after re-render
     mapInstance.current.setView(currentCenter, currentZoom, { animate: false })
   }, [geoData, data, dark])
+
+  // Render France Diplomatie advisory hatching — dashed overlay by travel risk level
+  useEffect(() => {
+    if (!mapInstance.current) return
+    if (diplomatieLayerRef.current) {
+      mapInstance.current.removeLayer(diplomatieLayerRef.current)
+      diplomatieLayerRef.current = null
+    }
+    if (!geoData || Object.keys(advisoryLevels).length === 0) return
+
+    const a3ToLevel: Record<string, DiplomatieAdvisoryLevel> = {}
+    for (const [a2, level] of Object.entries(advisoryLevels)) {
+      const a3 = A2_TO_A3[a2]
+      if (a3 && level !== 'unknown') a3ToLevel[a3] = level
+    }
+
+    const featureA3 = (f: any) => f?.properties?.ADM0_A3 || f?.properties?.ISO_A3 || f?.properties?.['ISO3166-1-Alpha-3'] || f?.id
+    const features = ((geoData as any).features || []).filter((f: any) => {
+      const level = a3ToLevel[featureA3(f)]
+      return level && level !== 'unknown'
+    })
+    if (features.length === 0) return
+
+    if (!mapInstance.current.getPane('diplomatiePane')) {
+      mapInstance.current.createPane('diplomatiePane')
+      const pane = mapInstance.current.getPane('diplomatiePane')!
+      pane.style.zIndex = '399'
+      pane.style.pointerEvents = 'none'
+    }
+
+    diplomatieLayerRef.current = L.geoJSON({ type: 'FeatureCollection', features } as any, {
+      pane: 'diplomatiePane',
+      interactive: false,
+      style: (feature) => {
+        const a3 = featureA3(feature)
+        const level = a3ToLevel[a3] || 'unknown'
+        const color = ADVISORY_COLORS[level]
+        return { fillColor: color, fillOpacity: 0.22, color, weight: 1.2, dashArray: '6 4' }
+      },
+    } as L.GeoJSONOptions).addTo(mapInstance.current)
+  }, [geoData, advisoryLevels, dark, loading])
 
   // Render plugin tint layers (atlasLayerProvider hook) — a dashed wash over the
   // countries a plugin flagged, in its own non-interactive pane above the country
@@ -615,20 +691,9 @@ export function useAtlas() {
       console.error('Error fitting bounds', e)
      }
 
-    // Mirror the map-click behaviour so an already-visited country can be removed
-    // straight from search. Tiny countries (Vatican City, Singapore) are hard to
-    // hit on the map, so search was the only way in — but it always opened the
-    // "Mark / Bucket" dialog with no Remove option.
-    const visited = data?.countries.find(c => c.code === country_code)
-    if (visited) {
-      if (visited.placeCount === 0 && visited.tripCount === 0) {
-        handleUnmarkCountry(country_code)
-      } else {
-        loadCountryDetailRef.current(country_code)
-      }
-      return
-    }
-    setConfirmAction({ type: 'choose', code: country_code, name: country_label })
+    // Mirror the map-click behaviour: open diplomacy panel from search
+    openDiplomatieCountry(country_code)
+    return
   }
 
   const executeConfirmAction = async (): Promise<void> => {
@@ -750,6 +815,51 @@ export function useAtlas() {
   }
   loadCountryDetailRef.current = loadCountryDetail
 
+  const openDiplomatieCountry = async (code: string): Promise<void> => {
+    setDiplomatieCountry(code)
+    setDiplomatieLoading(true)
+    setDiplomatieSummary(null)
+    setShowDiplomatieDetail(false)
+    loadCountryDetail(code)
+    try {
+      const r = await apiClient.get(`/addons/atlas/diplomatie/${code}/summary`)
+      setDiplomatieSummary(r.data)
+    } catch {
+      setDiplomatieSummary(null)
+    } finally {
+      setDiplomatieLoading(false)
+    }
+  }
+  openDiplomatieRef.current = openDiplomatieCountry
+
+  const loadDiplomatieDetail = async (): Promise<void> => {
+    if (!diplomatieCountry) return
+    setShowDiplomatieDetail(true)
+    setDiplomatieDetailLoading(true)
+    try {
+      const r = await apiClient.get(`/addons/atlas/diplomatie/${diplomatieCountry}/detail`)
+      setDiplomatieDetail(r.data)
+    } catch {
+      setDiplomatieDetail(null)
+    } finally {
+      setDiplomatieDetailLoading(false)
+    }
+  }
+
+  const closeDiplomatie = (): void => {
+    setDiplomatieCountry(null)
+    setDiplomatieSummary(null)
+    setShowDiplomatieDetail(false)
+    setDiplomatieDetail(null)
+    setSelectedCountry(null)
+    setCountryDetail(null)
+  }
+
+  const closeDiplomatieDetail = (): void => {
+    setShowDiplomatieDetail(false)
+    setDiplomatieDetail(null)
+  }
+
   const stats = data?.stats || { totalTrips: 0, totalPlaces: 0, totalCountries: 0, totalDays: 0 }
   const countries = data?.countries || []
 
@@ -771,5 +881,9 @@ export function useAtlas() {
     bucketSearchResults, setBucketSearchResults,
     bucketPoiMonth, setBucketPoiMonth, bucketPoiYear, setBucketPoiYear,
     bucketSearching, bucketSearch, setBucketSearch,
+    // Diplomatie
+    advisoryLevels, diplomatieCountry, diplomatieSummary, diplomatieDetail,
+    diplomatieLoading, showDiplomatieDetail, diplomatieDetailLoading,
+    openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
   }
 }

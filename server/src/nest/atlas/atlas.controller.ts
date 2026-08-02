@@ -157,4 +157,31 @@ export class AtlasController {
     }
     return { success: true };
   }
+
+  @Get('diplomatie/levels')
+  @Header('Cache-Control', 'public, max-age=21600')
+  async diplomatieLevels() {
+    const levels = await this.atlas.diplomatieLevels();
+    return { levels };
+  }
+
+  @Get('diplomatie/:code/summary')
+  @Header('Cache-Control', 'public, max-age=86400')
+  async diplomatieSummary(@Param('code') code: string) {
+    const summary = await this.atlas.diplomatieSummary(code.toUpperCase());
+    if (!summary) {
+      throw new HttpException({ error: 'Country not found' }, 404);
+    }
+    return summary;
+  }
+
+  @Get('diplomatie/:code/detail')
+  @Header('Cache-Control', 'public, max-age=86400')
+  async diplomatieDetail(@Param('code') code: string) {
+    const detail = await this.atlas.diplomatieDetail(code.toUpperCase());
+    if (!detail) {
+      throw new HttpException({ error: 'Country not found' }, 404);
+    }
+    return detail;
+  }
 }

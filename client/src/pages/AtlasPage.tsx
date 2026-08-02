@@ -9,6 +9,9 @@ import { A2_TO_A3, countryCodeToFlag, type AtlasCountry, type AtlasStats, type A
 import { continentForCountry } from '@trek/shared'
 import { useAtlas } from './atlas/useAtlas'
 import AtlasCountrySearch from './atlas/AtlasCountrySearch'
+import AtlasDiplomatiePanel from './atlas/AtlasDiplomatiePanel'
+import AtlasDiplomatieDetail from './atlas/AtlasDiplomatieDetail'
+import AtlasDiplomatieLegend from './atlas/AtlasDiplomatieLegend'
 import { useToast } from '../components/shared/Toast'
 import { getApiErrorMessage } from '../types'
 
@@ -83,6 +86,9 @@ export default function AtlasPage(): React.ReactElement {
     bucketSearchResults, setBucketSearchResults,
     bucketPoiMonth, setBucketPoiMonth, bucketPoiYear, setBucketPoiYear,
     bucketSearching, bucketSearch, setBucketSearch,
+    diplomatieCountry, diplomatieSummary, diplomatieDetail,
+    diplomatieLoading, showDiplomatieDetail, diplomatieDetailLoading,
+    openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
   } = useAtlas()
   const toast = useToast()
   // Solid surfaces when the user disabled transparency (read at render — the
@@ -107,6 +113,8 @@ export default function AtlasPage(): React.ReactElement {
         {/* Map */}
         <div ref={mapRef} style={{ position: 'absolute', inset: 0, zIndex: 1, background: dark ? '#1a1a2e' : '#f0f0f0' }} />
 
+        <AtlasDiplomatieLegend dark={dark} t={t} />
+
         {/* Region tooltip (custom, always on top, ref-controlled to avoid re-renders) */}
         <div ref={regionTooltipRef} style={{
           position: 'fixed', display: 'none',
@@ -130,6 +138,38 @@ export default function AtlasPage(): React.ReactElement {
           options={atlas_country_options}
           onSelect={select_country_from_search}
         />
+
+        {/* Diplomatie travel advisory panel */}
+        {diplomatieCountry && (
+          <AtlasDiplomatiePanel
+            summary={diplomatieSummary}
+            loading={diplomatieLoading}
+            dark={dark}
+            t={t}
+            onClose={closeDiplomatie}
+            onDetail={loadDiplomatieDetail}
+            isVisited={!!countries.find(c => c.code === diplomatieCountry)}
+            canUnmark={(() => {
+              const c = countries.find(c => c.code === diplomatieCountry)
+              return !!c && c.placeCount === 0 && c.tripCount === 0
+            })()}
+            onMark={() => {
+              const name = resolveName(diplomatieCountry)
+              setConfirmAction({ type: 'choose', code: diplomatieCountry, name })
+            }}
+            onUnmark={() => handleUnmarkCountry(diplomatieCountry)}
+          />
+        )}
+
+        {showDiplomatieDetail && (
+          <AtlasDiplomatieDetail
+            detail={diplomatieDetail}
+            loading={diplomatieDetailLoading}
+            dark={dark}
+            t={t}
+            onClose={closeDiplomatieDetail}
+          />
+        )}
 
         {/* Mobile: Bottom bar */}
         <div className="md:hidden absolute left-0 right-0 z-10 flex justify-center" style={{ bottom: 'calc(84px + env(safe-area-inset-bottom, 0px) + 8px)', touchAction: 'manipulation' }}>

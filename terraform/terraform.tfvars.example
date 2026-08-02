@@ -1,0 +1,45 @@
+# Copier ce fichier vers terraform.tfvars et compléter les valeurs sensibles.
+#
+# Clés API (fichier .env à la racine de terraform/, ou export manuel) :
+#   SCW_ACCESS_KEY="..."
+#   SCW_SECRET_KEY="..."
+#   SCW_DEFAULT_PROJECT_ID="6eaccdad-8a37-46c2-b1b2-623d24e9e32e"
+#   CLOUDFLARE_API_KEY="..."
+#   CLOUDFLARE_EMAIL="..."
+#
+# Charger le .env avant terraform :
+#   set -a && source .env && set +a && unset CLOUDFLARE_API_TOKEN
+
+project_id = "6eaccdad-8a37-46c2-b1b2-623d24e9e32e"
+region     = "fr-par"
+zone       = "fr-par-1"
+
+# Instance (~6,5 €/mois) + stockage local 20 Go (~1 €/mois)
+instance_type       = "DEV1-S"
+root_volume_size_gb = 20  # max local storage sur DEV1-S
+trek_image          = "ghcr.io/igormages/trek:latest"
+timezone            = "Europe/Paris"
+
+# Compte admin initial
+# admin_email    = "admin@example.com"
+# admin_password = "change-me"
+
+# Clé de chiffrement — conserver la même si vous migrez des données
+# encryption_key = ""  # openssl rand -hex 32
+
+# Cloudflare Tunnel (0 € — remplace LB + IPv4)
+enable_cloudflare        = true
+enable_cloudflare_tunnel = true
+cloudflare_account_id    = "votre-account-id-cloudflare"
+cloudflare_zone_name     = "mages.pro"
+cloudflare_api_key       = "..."
+cloudflare_email         = "..."
+domain_name              = "trek.mages.pro"
+force_https              = true
+
+# Migration one-shot depuis snapshots (désactiver après succès)
+# enable_data_migration       = true
+# migrate_data_snapshot_id    = "fr-par-1/..."
+# migrate_uploads_snapshot_id = "fr-par-1/..."
+
+tags = ["trek", "terraform", "production"]

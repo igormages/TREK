@@ -79,6 +79,18 @@ html:not(.dark) .atlas-tooltip::before { border-top-color: rgba(255, 255, 255, 0
 .leaflet-tooltip-pane { transition: none !important; }
 .leaflet-fade-anim .leaflet-tooltip { transition: none !important; opacity: 1 !important; }
 
+/* Diplomatie detail modal — preserve source HTML layout */
+.atlas-diplomatie-detail h3, .atlas-diplomatie-detail h4 { font-weight: 700; margin: 1em 0 0.5em; }
+.atlas-diplomatie-detail p { margin: 0.5em 0; }
+.atlas-diplomatie-detail ul, .atlas-diplomatie-detail ol { margin: 0.5em 0; padding-left: 1.5em; }
+.atlas-diplomatie-detail li { margin: 0.25em 0; }
+.atlas-diplomatie-detail a { color: var(--accent, #4f46e5); text-decoration: underline; }
+.atlas-diplomatie-detail table { border-collapse: collapse; width: 100%; margin: 0.5em 0; }
+.atlas-diplomatie-detail th, .atlas-diplomatie-detail td { border: 1px solid var(--border-primary, #e2e8f0); padding: 6px 10px; text-align: left; }
+.atlas-diplomatie-detail img { max-width: 100%; height: auto; }
+.atlas-diplomatie-detail figure { margin: 1em 0; }
+.atlas-diplomatie-detail blockquote { border-left: 3px solid var(--border-primary, #e2e8f0); padding-left: 1em; margin: 0.5em 0; }
+
 .dark .leaflet-control-zoom a {
   background: rgba(10, 10, 20, 0.7) !important;
   color: #e2e8f0 !important;

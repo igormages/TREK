@@ -1,0 +1,87 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/igormages/trek
+
+jobs:
+  build-and-deploy:
+    if: github.repository == 'igormages/TREK'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: |
+            trek:deploy
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+
+      - name: Push image to GHCR
+        run: |
+          docker push "${{ env.IMAGE }}:latest"
+          docker push "${{ env.IMAGE }}:${{ github.sha }}"
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy on production server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          docker save trek:deploy | gzip | ssh "root@${DEPLOY_HOST}" 'gunzip | docker load'
+          ssh "root@${DEPLOY_HOST}" bash <<'REMOTE'
+          set -euo pipefail
+          cd /opt/trek
+          sed -i 's|image:.*|image: trek:deploy|' docker-compose.yml
+          docker compose up -d --remove-orphans
+          docker image prune -f
+          echo "Running: $(docker inspect trek --format '{{.Config.Image}}')"
+          REMOTE
+
+      - name: Health check
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh "root@${DEPLOY_HOST}" bash -c '
+            for i in $(seq 1 30); do
+              if wget -qO- http://localhost:3000/api/health >/dev/null 2>&1; then
+                echo "Health check OK"
+                exit 0
+              fi
+              sleep 5
+            done
+            echo "Health check failed"
+            docker logs trek --tail 50
+            exit 1
+          '
