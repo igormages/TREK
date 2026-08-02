@@ -115,14 +115,14 @@ describe('diplomatieService', () => {
       expect(svc.parseAdvisoryLevel(html)).toBe('green');
     });
 
-    it('detects formellement déconseillé (red)', () => {
+    it('detects whole-country formellement déconseillé (red)', () => {
       const html = '<h3>Zones de vigilance</h3><p>La totalité du territoire est formellement déconseillée.</p>';
       expect(svc.parseAdvisoryLevel(html)).toBe('red');
     });
 
-    it('detects zones formellement déconseillées heading (red)', () => {
+    it('uses yellow as default when only sub-zone red headings exist', () => {
       const html = '<h3>Zones de vigilance</h3><h4>Zones formellement déconseillées</h4><p>Frontière sud.</p>';
-      expect(svc.parseAdvisoryLevel(html)).toBe('red');
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
     });
 
     it('detects vigilance renforcée (yellow)', () => {
@@ -130,9 +130,30 @@ describe('diplomatieService', () => {
       expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
     });
 
-    it('detects déconseillé sauf raison impérative (orange)', () => {
+    it('detects whole-country déconseillé sauf raison impérative (orange)', () => {
       const html = '<h3>Zones de vigilance</h3><p>Ce pays est déconseillé sauf raison impérative.</p>';
       expect(svc.parseAdvisoryLevel(html)).toBe('orange');
+    });
+
+    it('detects le reste du pays en vigilance renforcée (yellow)', () => {
+      const html = '<h3>Zones de vigilance</h3><p>Zones formellement déconseillées : Chihuahua. Le reste du pays est en vigilance renforcée.</p>';
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
+    });
+
+    it('detects narrative sub-zone warnings as yellow (India-style)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <p>L'Inde est, dans son ensemble, un pays relativement sûr.</p>
+        <h4>Jammu-Cachemire</h4>
+        <p>Il est formellement déconseillé de se rendre dans la vallée du Cachemire.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
+    });
+
+    it('prefers yellow zone heading over orange/red in multi-zone countries (Thailand-style)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <h4>Zones formellement déconseillées</h4><p>Extrême-sud.</p>
+        <h4>Zones déconseillées sauf raison impérative</h4><p>Satun.</p>
+        <h4>Zones en vigilance renforcée : Bangkok et autres régions</h4><p>Généralités.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
     });
 
     it('defaults to green when vigilance section exists without explicit level', () => {

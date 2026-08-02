@@ -158,30 +158,58 @@ function extractLastUpdated(html: string): string | null {
   return m ? m[1] : null;
 }
 
-/** Parse advisory level from the security page HTML. */
+/**
+ * Parse the default advisory level from the security page HTML.
+ * Uses the dominant / rest-of-country level — not the worst sub-zone level —
+ * so mixed-zone countries (e.g. India, Thailand) map to yellow instead of red.
+ */
 export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   const main = extractMainContent(html);
   const zoneIdx = main.lastIndexOf('Zones de vigilance');
-  const block = zoneIdx >= 0 ? main.slice(zoneIdx, zoneIdx + 12000) : main;
+  if (zoneIdx < 0) return 'unknown';
+
+  const block = main.slice(zoneIdx, zoneIdx + 20000);
   const text = textContent(block);
 
-  const hasRed = /zones?\s+formellement\s+d[eé]conseill[eé]es?/i.test(text)
-    || /formellement\s+d[eé]conseill/i.test(text)
-    || /est\s+formellement\s+d[eé]conseill/i.test(text)
-    || /totalit[eé]\s+du\s+territoire\s+est\s+formellement/i.test(text);
-  const hasOrange = /d[eé]conseill[eé]\s+sauf\s+raison\s+imp[eé]rative/i.test(text)
-    || /zones?\s+d[eé]conseill[eé]es?\s+sauf/i.test(text);
-  const hasYellow = /vigilance\s+renforc[eé]e/i.test(text)
-    || /zones?\s+de\s+vigilance\s+renforc[eé]e/i.test(text);
-  const hasGreen = /vigilance\s+normale/i.test(text)
-    || /ensemble\s+du\s+(pays|territoire)\s+est\s+en\s+vigilance\s+normale/i.test(text);
+  // 1. Explicit whole-country statements
+  if (/totalit[eé]\s+du\s+territoire\s+est\s+formellement/i.test(text)) return 'red';
+  if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+formellement/i.test(text)) return 'red';
+  if (/ce\s+pays\s+est\s+formellement\s+d[eé]conseill/i.test(text)) return 'red';
 
-  if (hasRed) return 'red';
-  if (hasOrange) return 'orange';
-  if (hasYellow) return 'yellow';
-  if (hasGreen) return 'green';
-  if (zoneIdx >= 0) return 'green';
-  return 'unknown';
+  if (/ce\s+pays\s+est\s+d[eé]conseill[eé]\s+sauf\s+raison\s+imp[eé]rative/i.test(text)) return 'orange';
+  if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+d[eé]conseill[eé]\s+sauf/i.test(text)) return 'orange';
+  if (/totalit[eé]\s+du\s+territoire\s+est\s+d[eé]conseill[eé]\s+sauf/i.test(text)) return 'orange';
+
+  if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+en\s+vigilance\s+renforc[eé]e/i.test(text)) return 'yellow';
+  if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+en\s+vigilance\s+normale/i.test(text)) return 'green';
+
+  // 2. "Le reste du pays/territoire est en …"
+  const restMatch = text.match(
+    /le\s+reste\s+du\s+(?:pays|territoire)\s+est\s+en\s+(?:vigilance\s+)?(normale|renforc[eé]e)/i,
+  );
+  if (restMatch) {
+    return restMatch[1].toLowerCase().startsWith('norm') ? 'green' : 'yellow';
+  }
+
+  // 3. Structured zone headings (h3/h4 categories on the official map)
+  const hasYellowHeading = /zones?\s+(?:(?:de|en)\s+)?vigilance\s+renforc[eé]e/i.test(block);
+  const hasOrangeHeading = /zones?\s+d[eé]conseill[eé]es?\s+sauf/i.test(block);
+  const hasRedHeading = /zones?\s+formellement\s+d[eé]conseill[eé]es?/i.test(block);
+
+  if (hasYellowHeading || hasOrangeHeading || hasRedHeading) {
+    if (hasYellowHeading) return 'yellow';
+    if (hasOrangeHeading) return 'orange';
+    return 'yellow';
+  }
+
+  // 4. Narrative sub-zone warnings (e.g. India — Kashmir red, rest of country safe)
+  const hasPartialRed = /(?:il\s+est\s+)?formellement\s+d[eé]conseill/i.test(text);
+  const hasPartialWarn = /(?:il\s+est\s+)?(?:fortement\s+)?d[eé]conseill[eé]/i.test(text);
+  if (hasPartialRed || hasPartialWarn) return 'yellow';
+
+  if (/vigilance\s+renforc[eé]e/i.test(text)) return 'yellow';
+  if (/vigilance\s+normale/i.test(text)) return 'green';
+  return 'green';
 }
 
 function extractRisksSummary(html: string): string {
