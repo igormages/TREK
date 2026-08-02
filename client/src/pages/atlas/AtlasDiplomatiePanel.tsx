@@ -21,12 +21,14 @@ interface AtlasDiplomatiePanelProps {
   onDetail: () => void
   onMark?: () => void
   onUnmark?: () => void
+  onAddToBucket?: () => void
   isVisited?: boolean
+  isInBucketList?: boolean
   canUnmark?: boolean
 }
 
 export default function AtlasDiplomatiePanel({
-  summary, loading, dark, t, onClose, onDetail, onMark, onUnmark, isVisited, canUnmark,
+  summary, loading, dark, t, onClose, onDetail, onMark, onUnmark, onAddToBucket, isVisited, isInBucketList, canUnmark,
 }: AtlasDiplomatiePanelProps): React.ReactElement | null {
   if (!summary && !loading) return null
 
@@ -117,6 +119,15 @@ export default function AtlasDiplomatiePanel({
                 background: 'none', cursor: 'pointer', color: tp, fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
               }}>
               {t('atlas.markVisited')}
+            </button>
+          )}
+          {!isInBucketList && onAddToBucket && (
+            <button onClick={onAddToBucket}
+              style={{
+                padding: '8px 12px', borderRadius: 10, border: `1px solid ${dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                background: 'none', cursor: 'pointer', color: dark ? '#fbbf24' : '#d97706', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+              }}>
+              {t('atlas.addToBucket')}
             </button>
           )}
           {isVisited && canUnmark && onUnmark && (

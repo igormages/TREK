@@ -231,13 +231,32 @@ function countryUrl(slug: string, suffix: string): string {
   return `${BASE}/fr/information-par-pays/${slug}/${suffix}`;
 }
 
+function resolveDiplomatieUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.startsWith('data:') || trimmed.startsWith('mailto:') || trimmed.startsWith('#')) {
+    return url;
+  }
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (trimmed.startsWith('/')) return `${BASE}${trimmed}`;
+  return `${BASE}/${trimmed}`;
+}
+
+/** Rewrite relative image/link URLs in scraped HTML to absolute diplomatie.gouv.fr URLs. */
+export function rewriteDiplomatieRelativeUrls(html: string): string {
+  return html.replace(
+    /(\s(?:src|href|data-src)=["'])([^"']+)(["'])/gi,
+    (_match, prefix: string, url: string, suffix: string) => `${prefix}${resolveDiplomatieUrl(url)}${suffix}`,
+  );
+}
+
 function parseSections(sectionResults: { id: string; title: string; html: string | null }[]): DiplomatieDetail['sections'] {
   const sections: DiplomatieDetail['sections'] = [];
   for (const section of sectionResults) {
     if (!section.html) continue;
     const body = extractArticleBody(section.html);
     if (body.trim()) {
-      sections.push({ id: section.id, title: section.title, html: body });
+      sections.push({ id: section.id, title: section.title, html: rewriteDiplomatieRelativeUrls(body) });
     }
   }
   return sections;
@@ -331,7 +350,10 @@ function rowToDetail(row: DiplomatieRow, name: string): DiplomatieDetail {
   return {
     code: row.country_code,
     name,
-    sections,
+    sections: sections.map((s) => ({
+      ...s,
+      html: rewriteDiplomatieRelativeUrls(s.html),
+    })),
     sourceUrl: row.source_url,
   };
 }

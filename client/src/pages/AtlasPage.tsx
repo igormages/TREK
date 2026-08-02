@@ -157,6 +157,11 @@ export default function AtlasPage(): React.ReactElement {
               const name = resolveName(diplomatieCountry)
               setConfirmAction({ type: 'choose', code: diplomatieCountry, name })
             }}
+            onAddToBucket={() => {
+              const name = resolveName(diplomatieCountry)
+              setConfirmAction({ type: 'bucket', code: diplomatieCountry, name })
+            }}
+            isInBucketList={bucketList.some(b => b.country_code === diplomatieCountry)}
             onUnmark={() => handleUnmarkCountry(diplomatieCountry)}
           />
         )}

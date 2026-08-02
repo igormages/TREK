@@ -80,6 +80,35 @@ describe('diplomatieService', () => {
     });
   });
 
+  describe('rewriteDiplomatieRelativeUrls', () => {
+    it('rewrites root-relative paths (Australia case)', () => {
+      const html = '<img src="/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg" alt="Australie">';
+      expect(svc.rewriteDiplomatieRelativeUrls(html)).toBe(
+        '<img src="https://www.diplomatie.gouv.fr/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg" alt="Australie">',
+      );
+    });
+
+    it('rewrites paths without leading slash', () => {
+      const html = '<a href="files/cav/australie/test.jpg">link</a>';
+      expect(svc.rewriteDiplomatieRelativeUrls(html)).toContain(
+        'href="https://www.diplomatie.gouv.fr/files/cav/australie/test.jpg"',
+      );
+    });
+
+    it('leaves absolute URLs unchanged', () => {
+      const url = 'https://www.diplomatie.gouv.fr/files/cav/australie/test.jpg';
+      const html = `<img src="${url}">`;
+      expect(svc.rewriteDiplomatieRelativeUrls(html)).toBe(`<img src="${url}">`);
+    });
+
+    it('rewrites protocol-relative URLs', () => {
+      const html = '<img src="//www.diplomatie.gouv.fr/files/test.jpg">';
+      expect(svc.rewriteDiplomatieRelativeUrls(html)).toContain(
+        'src="https://www.diplomatie.gouv.fr/files/test.jpg"',
+      );
+    });
+  });
+
   describe('parseAdvisoryLevel', () => {
     it('detects vigilance normale (green)', () => {
       const html = '<h3>Zones de vigilance</h3><p>L\'ensemble du pays est en vigilance normale.</p>';
@@ -141,6 +170,20 @@ describe('diplomatieService', () => {
         visa: 'CNI acceptée',
         lastUpdated: '1 janvier 2026',
       });
+    });
+
+    it('getCountryDetail returns stored sections with rewritten URLs', async () => {
+      seedRow('AU', 'green', {
+        sections: JSON.stringify([{
+          id: 'securite',
+          title: 'Sécurité',
+          html: '<img src="/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg">',
+        }]),
+      });
+      const detail = await svc.getCountryDetail('AU');
+      expect(detail?.sections[0].html).toContain(
+        'https://www.diplomatie.gouv.fr/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg',
+      );
     });
 
     it('getCountryDetail returns stored sections', async () => {
