@@ -1,0 +1,36 @@
+shared/src/i18n/fr/atlas.ts
+  s_f192301bfd9e45::t_186e9ff625f133 71
+  s_f192301bfd9e45::t_9714a7a95f4540 72
+client/src/pages/atlas/AtlasDiplomatiePanel.tsx
+  s_f192301bfd9e45::t_a9f6bc62ed706a 81-90
+  s_f192301bfd9e45::t_efa14949c737a1 2
+server/tests/unit/services/diplomatieService.test.ts
+  s_f192301bfd9e45::t_698a1cd38bcf6c 169-194,235
+  s_f192301bfd9e45::t_436f8db498d380 219,223-234
+  s_f192301bfd9e45::t_c42d22b7f698ed 236
+shared/src/i18n/en/atlas.ts
+  s_f192301bfd9e45::t_52b46f4ba26db4 71
+  s_f192301bfd9e45::t_ebc85ace5196f8 72
+server/src/services/diplomatieService.ts
+  s_f192301bfd9e45::t_2292436af52c7f 24
+  s_f192301bfd9e45::t_66a153d55e9577 394
+  s_f192301bfd9e45::t_ddb933425458bb 274-297
+shared/src/atlas/atlas.schema.ts
+  s_f192301bfd9e45::t_1c4229ade4e350 295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "09b09f19bd8e0723cae7834d36b78c563e55da40",
+  "prompts": {},
+  "sessions": {
+    "s_f192301bfd9e45": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b5a6b38f-ab61-4134-acc4-dd2ec49a1aa1",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
