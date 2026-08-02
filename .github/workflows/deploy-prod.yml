@@ -53,21 +53,28 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Add server to known hosts
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -T 15 -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          if [[ "$DEPLOY_HOST" == *:* ]]; then
+            SSH_TARGET="[${DEPLOY_HOST}]"
+          else
+            SSH_TARGET="${DEPLOY_HOST}"
+          fi
+          ssh-keyscan -T 15 -H "${SSH_TARGET}" >> ~/.ssh/known_hosts 2>/dev/null || true
           cat >> ~/.ssh/config <<EOF
-          Host ${{ secrets.DEPLOY_HOST }}
+          Host trek-prod
+            HostName ${SSH_TARGET}
+            User root
             StrictHostKeyChecking accept-new
             UserKnownHostsFile ~/.ssh/known_hosts
           EOF
 
       - name: Deploy on production server
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          docker save trek:deploy | gzip | ssh "root@${DEPLOY_HOST}" 'gunzip | docker load'
-          ssh "root@${DEPLOY_HOST}" bash <<'REMOTE'
+          docker save trek:deploy | gzip | ssh trek-prod 'gunzip | docker load'
+          ssh trek-prod bash <<'REMOTE'
           set -euo pipefail
           cd /opt/trek
           sed -i 's|image:.*|image: trek:deploy|' docker-compose.yml
@@ -77,10 +84,8 @@ jobs:
           REMOTE
 
       - name: Health check
-        env:
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          ssh "root@${DEPLOY_HOST}" bash -c '
+          ssh trek-prod bash -c '
             for i in $(seq 1 30); do
               if wget -qO- http://localhost:3000/api/health >/dev/null 2>&1; then
                 echo "Health check OK"
