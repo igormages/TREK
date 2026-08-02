@@ -1,0 +1,23 @@
+server/src/nest/atlas/atlas.controller.ts
+  s_386b0814eece68::t_7474ed513cfedd 179
+  s_386b0814eece68::t_cca79ebb35c370 162
+  s_386b0814eece68::t_8d026a4dc13145 169
+client/src/pages/atlas/useAtlas.ts
+  s_386b0814eece68::t_6bc7a254240698 201
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "7e5903a8926d60ea456f77fd5e7f5ee143e59079",
+  "prompts": {},
+  "sessions": {
+    "s_386b0814eece68": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "76f02d75-e7c4-4c99-800c-36fc38308975",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
