@@ -1,0 +1,19 @@
+client/src/pages/atlas/useAtlas.ts
+  s_089b18eadc79ef::t_a9722eea217d48 842,851-852
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "53da7d7fbac6c306e60c7d071864ac69e10f7481",
+  "prompts": {},
+  "sessions": {
+    "s_089b18eadc79ef": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "cc72e876-9232-4e5f-ab73-7f5f2235e3cb",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
