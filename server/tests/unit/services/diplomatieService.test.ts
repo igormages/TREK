@@ -164,6 +164,47 @@ describe('diplomatieService', () => {
     it('returns unknown when no vigilance section', () => {
       expect(svc.parseAdvisoryLevel('<p>Rien ici.</p>')).toBe('unknown');
     });
+
+    it('detects Sudan as red (whole-country red zone heading)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <img src="/files/files/cav/soudan/20250123_soudan-fcv_az_cle015cab.jpg" />
+        <h4>Zones formellement déconseillées (en rouge)</h4>
+        <p>Il est formellement déconseillé de se rendre dans l'ensemble du territoire soudanais, y compris à Khartoum et à Port-Soudan.</p>
+        <h4>États du Darfour</h4>
+        <p>Il est formellement déconseillé de se rendre dans les cinq États fédérés du Darfour.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('red');
+    });
+
+    it('detects India as yellow (mixed zones with narrative sub-zones)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <img src="/files/files/cav/inde/20260209_inde-fcv_cle07fb22-77f64.jpg" />
+        <p>L'Inde est, dans son ensemble, un pays relativement sûr.</p>
+        <h4>Jammu-Cachemire et zones frontalières avec le Pakistan</h4>
+        <p>Il est formellement déconseillé aux ressortissants français de se rendre dans la vallée du Cachemire (en rouge sur la carte).</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
+    });
+
+    it('detects Afghanistan as red (whole territory statement)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <img src="/files/files/cav/afghanistan/20180213_-afghanistan-fcv_cle083319-1.jpg" />
+        <p>La totalité du territoire est formellement déconseillée.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('red');
+    });
+
+    it('detects Spain as green (whole-country normal vigilance)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <img src="/files/files/cav/espagne/08-07-2013-espagne-fcv_bd_cle06115b-21c08.jpg" />
+        <p>L'ensemble du pays est en vigilance normale.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('green');
+    });
+
+    it('detects Honduras with typo "vigilence" as yellow (mixed orange/yellow zones)', () => {
+      const html = `<h3>Zones de vigilence</h3>
+        <img src="/files/files/cav/honduras/20160212_honduras_fcv_bd_cle811541-99736.jpg" />
+        <h4>Zones déconseillées sauf raison impérative</h4><p>Francisco Morazán.</p>
+        <h4>Zones de vigilance renforcée</h4><p>Les îles de la Baie.</p>`;
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
+    });
   });
 
   describe('extractVigilanceMapUrl', () => {
@@ -190,6 +231,22 @@ describe('diplomatieService', () => {
       const html = '<h3>Zones de vigilance</h3><p>L\'ensemble du pays est en vigilance normale.</p>';
       expect(svc.extractVigilanceMapUrl(html)).toBeNull();
     });
+
+    it('extracts map with typo "vigilence" heading (Honduras)', () => {
+      const html = `<h3>Zones de vigilence</h3>
+        <figure><img loading="lazy" src="/files/files/cav/honduras/20160212_honduras_fcv_bd_cle811541-99736.jpg" alt="carte de vigilance" /></figure>
+        <h4>Zones de vigilance renforcée</h4>`;
+      expect(svc.extractVigilanceMapUrl(html)).toBe(
+        'https://www.diplomatie.gouv.fr/files/files/cav/honduras/20160212_honduras_fcv_bd_cle811541-99736.jpg',
+      );
+    });
+
+    it('extracts map from data-src attribute', () => {
+      const html = '<h3>Zones de vigilance</h3><img data-src="/files/cav/test/pays-fcv.jpg">';
+      expect(svc.extractVigilanceMapUrl(html)).toBe(
+        'https://www.diplomatie.gouv.fr/files/cav/test/pays-fcv.jpg',
+      );
+    });
   });
 
   describe('database reads', () => {
@@ -213,11 +270,19 @@ describe('diplomatieService', () => {
         code: 'ES',
         name: 'Espagne',
         level: 'green',
+        levelLabel: 'Vigilance normale',
         risks: 'Sécurité bonne',
         visa: 'CNI acceptée',
         lastUpdated: '1 janvier 2026',
         vigilanceMapUrl: null,
       });
+    });
+
+    it('getCountrySummary normalizes stale level_label from level code', async () => {
+      seedRow('SD', 'red', { level_label: 'Vigilance renforcée' });
+      const summary = await svc.getCountrySummary('SD');
+      expect(summary?.level).toBe('red');
+      expect(summary?.levelLabel).toBe('Formellement déconseillé');
     });
 
     it('getCountrySummary includes vigilance map URL from security section', async () => {

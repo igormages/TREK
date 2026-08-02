@@ -51,6 +51,20 @@ const LEVEL_LABELS: Record<DiplomatieAdvisoryLevel, string> = {
   unknown: 'Inconnu',
 };
 
+/** Matches "Zones de vigilance" and the occasional typo "vigilence" on diplomatie.gouv.fr. */
+const VIGILANCE_SECTION_RE = /Zones\s+de\s+vigil[ae]nce/i;
+
+const VIGILANCE_MAP_IMG_ATTR_RE = /(?:src|data-src)=["']([^"']*\/cav\/[^"']+)["']/i;
+
+function findVigilanceSectionIndex(html: string): number {
+  const match = html.match(VIGILANCE_SECTION_RE);
+  return match?.index ?? -1;
+}
+
+function levelLabelFor(level: DiplomatieAdvisoryLevel): string {
+  return LEVEL_LABELS[level];
+}
+
 interface DiplomatieRow {
   country_code: string;
   level: string;
@@ -166,7 +180,7 @@ function extractLastUpdated(html: string): string | null {
  */
 export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   const main = extractMainContent(html);
-  const zoneIdx = main.lastIndexOf('Zones de vigilance');
+  const zoneIdx = findVigilanceSectionIndex(main);
   if (zoneIdx < 0) return 'unknown';
 
   const block = main.slice(zoneIdx, zoneIdx + 20000);
@@ -176,6 +190,8 @@ export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   if (/totalit[eé]\s+du\s+territoire\s+est\s+formellement/i.test(text)) return 'red';
   if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+formellement/i.test(text)) return 'red';
   if (/ce\s+pays\s+est\s+formellement\s+d[eé]conseill/i.test(text)) return 'red';
+  if (/il\s+est\s+formellement\s+d[eé]conseill[eé][^.]{0,120}ensemble\s+du\s+territoire/i.test(text)) return 'red';
+  if (/ensemble\s+du\s+territoire[^.]{0,80}formellement\s+d[eé]conseill/i.test(text)) return 'red';
 
   if (/ce\s+pays\s+est\s+d[eé]conseill[eé]\s+sauf\s+raison\s+imp[eé]rative/i.test(text)) return 'orange';
   if (/l['\u2019]ensemble\s+du\s+(?:pays|territoire)\s+est\s+d[eé]conseill[eé]\s+sauf/i.test(text)) return 'orange';
@@ -200,7 +216,9 @@ export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   if (hasYellowHeading || hasOrangeHeading || hasRedHeading) {
     if (hasYellowHeading) return 'yellow';
     if (hasOrangeHeading) return 'orange';
-    return 'yellow';
+    if (hasRedHeading && /(?:ensemble\s+du\s+(?:pays|territoire)|totalit[eé]\s+du\s+territoire)/i.test(text)) {
+      return 'red';
+    }
   }
 
   // 4. Narrative sub-zone warnings (e.g. India — Kashmir red, rest of country safe)
@@ -274,14 +292,17 @@ function resolveDiplomatieUrl(url: string): string {
 /** Extract the vigilance zones map image URL from a security page HTML body. */
 export function extractVigilanceMapUrl(html: string): string | null {
   const body = extractArticleBody(html);
-  const zoneIdx = body.search(/Zones\s+de\s+vigilance/i);
-  if (zoneIdx < 0) return null;
+  const zoneIdx = findVigilanceSectionIndex(body);
+  if (zoneIdx >= 0) {
+    const block = body.slice(Math.max(0, zoneIdx - 500), zoneIdx + 12000);
+    const imgMatch = block.match(new RegExp(`<img[^>]+${VIGILANCE_MAP_IMG_ATTR_RE.source}`, 'i'));
+    if (imgMatch) return resolveDiplomatieUrl(imgMatch[1]);
+  }
 
-  const block = body.slice(zoneIdx, zoneIdx + 8000);
-  const imgMatch = block.match(/<img[^>]+src=["']([^"']*\/cav\/[^"']+)["']/i);
-  if (!imgMatch) return null;
+  const fallbackMatch = body.match(new RegExp(`<img[^>]+${VIGILANCE_MAP_IMG_ATTR_RE.source}`, 'i'));
+  if (!fallbackMatch) return null;
 
-  return resolveDiplomatieUrl(imgMatch[1]);
+  return resolveDiplomatieUrl(fallbackMatch[1]);
 }
 
 function vigilanceMapFromSections(sectionsJson: string): string | null {
@@ -343,7 +364,7 @@ async function scrapeCountry(code: string): Promise<boolean> {
   UPSERT.run(
     upper,
     level,
-    LEVEL_LABELS[level],
+    levelLabelFor(level),
     securityHtml ? extractRisksSummary(securityHtml) : '',
     entryHtml ? extractVisaSummary(entryHtml) : '',
     securityHtml ? extractOtherInfo(securityHtml, healthHtml) : '',
@@ -385,7 +406,7 @@ function rowToSummary(row: DiplomatieRow, name: string): DiplomatieSummary {
     code: row.country_code,
     name,
     level: row.level as DiplomatieAdvisoryLevel,
-    levelLabel: row.level_label,
+    levelLabel: levelLabelFor(row.level as DiplomatieAdvisoryLevel) || row.level_label,
     risks: row.risks,
     visa: row.visa,
     otherInfo: row.other_info,
