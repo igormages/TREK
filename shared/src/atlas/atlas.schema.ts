@@ -292,6 +292,7 @@ export const diplomatieSummarySchema = z.object({
   otherInfo: z.string(),
   lastUpdated: z.string().nullable(),
   sourceUrl: z.string(),
+  vigilanceMapUrl: z.string().nullable(),
 });
 export type DiplomatieSummary = z.infer<typeof diplomatieSummarySchema>;
 

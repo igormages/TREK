@@ -68,5 +68,7 @@ const atlas: TranslationStrings = {
   'atlas.diplomatieLevelOrange': 'Déconseillé sauf raison impérative',
   'atlas.diplomatieLevelYellow': 'Vigilance renforcée',
   'atlas.diplomatieLevelGreen': 'Vigilance normale',
+  'atlas.diplomatieVigilanceMap': 'Zones de vigilance',
+  'atlas.diplomatieVigilanceMapAlt': 'Carte des zones de vigilance — {country}',
 };
 export default atlas;

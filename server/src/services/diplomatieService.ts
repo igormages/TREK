@@ -21,6 +21,7 @@ export interface DiplomatieSummary {
   otherInfo: string;
   lastUpdated: string | null;
   sourceUrl: string;
+  vigilanceMapUrl: string | null;
 }
 
 export interface DiplomatieDetail {
@@ -270,6 +271,30 @@ function resolveDiplomatieUrl(url: string): string {
   return `${BASE}/${trimmed}`;
 }
 
+/** Extract the vigilance zones map image URL from a security page HTML body. */
+export function extractVigilanceMapUrl(html: string): string | null {
+  const body = extractArticleBody(html);
+  const zoneIdx = body.search(/Zones\s+de\s+vigilance/i);
+  if (zoneIdx < 0) return null;
+
+  const block = body.slice(zoneIdx, zoneIdx + 8000);
+  const imgMatch = block.match(/<img[^>]+src=["']([^"']*\/cav\/[^"']+)["']/i);
+  if (!imgMatch) return null;
+
+  return resolveDiplomatieUrl(imgMatch[1]);
+}
+
+function vigilanceMapFromSections(sectionsJson: string): string | null {
+  try {
+    const sections = JSON.parse(sectionsJson) as DiplomatieDetail['sections'];
+    const securite = sections.find((s) => s.id === 'securite');
+    if (!securite?.html) return null;
+    return extractVigilanceMapUrl(securite.html);
+  } catch {
+    return null;
+  }
+}
+
 /** Rewrite relative image/link URLs in scraped HTML to absolute diplomatie.gouv.fr URLs. */
 export function rewriteDiplomatieRelativeUrls(html: string): string {
   return html.replace(
@@ -366,6 +391,7 @@ function rowToSummary(row: DiplomatieRow, name: string): DiplomatieSummary {
     otherInfo: row.other_info,
     lastUpdated: row.last_updated,
     sourceUrl: row.source_url,
+    vigilanceMapUrl: vigilanceMapFromSections(row.sections),
   };
 }
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { X, ExternalLink, AlertTriangle, FileText, Plane } from 'lucide-react'
+import { X, ExternalLink, AlertTriangle, FileText, Plane, Map } from 'lucide-react'
 import type { TranslationFn } from '../../types'
 import type { DiplomatieSummary, DiplomatieAdvisoryLevel } from '@trek/shared'
 import { countryCodeToFlag } from './atlasModel'
@@ -78,6 +78,16 @@ export default function AtlasDiplomatiePanel({
           </div>
         ) : summary && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {summary.vigilanceMapUrl && (
+              <Section icon={Map} title={t('atlas.diplomatieVigilanceMap')} color={tp} labelColor={tf}>
+                <img
+                  src={summary.vigilanceMapUrl}
+                  alt={t('atlas.diplomatieVigilanceMapAlt', { country: summary.name })}
+                  style={{ width: '100%', height: 'auto', borderRadius: 8, display: 'block' }}
+                  loading="lazy"
+                />
+              </Section>
+            )}
             {summary.risks && (
               <Section icon={AlertTriangle} title={t('atlas.diplomatieRisks')} color={tp} labelColor={tf}>
                 <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: tm }}>{summary.risks}</p>

@@ -166,6 +166,32 @@ describe('diplomatieService', () => {
     });
   });
 
+  describe('extractVigilanceMapUrl', () => {
+    it('extracts map image after Zones de vigilance heading (Australia)', () => {
+      const html = `<h3>Zones de vigilance</h3>
+        <figure class="fr-content-media"><img src="/files/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg" alt="" /></figure>`;
+      expect(svc.extractVigilanceMapUrl(html)).toBe(
+        'https://www.diplomatie.gouv.fr/files/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg',
+      );
+    });
+
+    it('extracts map with single /files/cav/ path', () => {
+      const html = '<h3>Zones de vigilance</h3><img src="/files/cav/espagne/test.jpg">';
+      expect(svc.extractVigilanceMapUrl(html)).toBe(
+        'https://www.diplomatie.gouv.fr/files/cav/espagne/test.jpg',
+      );
+    });
+
+    it('returns null when no vigilance section', () => {
+      expect(svc.extractVigilanceMapUrl('<p>Pas de carte.</p>')).toBeNull();
+    });
+
+    it('returns null when vigilance section has no map image', () => {
+      const html = '<h3>Zones de vigilance</h3><p>L\'ensemble du pays est en vigilance normale.</p>';
+      expect(svc.extractVigilanceMapUrl(html)).toBeNull();
+    });
+  });
+
   describe('database reads', () => {
     it('isDiplomatieDataEmpty reflects row count', () => {
       expect(svc.isDiplomatieDataEmpty()).toBe(true);
@@ -190,7 +216,22 @@ describe('diplomatieService', () => {
         risks: 'Sécurité bonne',
         visa: 'CNI acceptée',
         lastUpdated: '1 janvier 2026',
+        vigilanceMapUrl: null,
       });
+    });
+
+    it('getCountrySummary includes vigilance map URL from security section', async () => {
+      seedRow('AU', 'green', {
+        sections: JSON.stringify([{
+          id: 'securite',
+          title: 'Sécurité',
+          html: '<h3>Zones de vigilance</h3><img src="/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg">',
+        }]),
+      });
+      const summary = await svc.getCountrySummary('AU');
+      expect(summary?.vigilanceMapUrl).toBe(
+        'https://www.diplomatie.gouv.fr/files/cav/australie/20130530_australie-fcv_cle0fcb6c-1.jpg',
+      );
     });
 
     it('getCountryDetail returns stored sections with rewritten URLs', async () => {
