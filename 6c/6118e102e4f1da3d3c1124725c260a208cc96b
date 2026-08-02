@@ -1,0 +1,20 @@
+.github/workflows/deploy-static.yml
+  s_ab1b6ae610407d::t_f51add147c5094 8-9,12-14,27-29,31,35-66,69
+  s_ab1b6ae610407d::t_6e65834b6a072d 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "6c6118e102e4f1da3d3c1124725c260a208cc96b",
+  "prompts": {},
+  "sessions": {
+    "s_ab1b6ae610407d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ed0b5ec1-64bc-4278-930d-151f3f668a69",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
