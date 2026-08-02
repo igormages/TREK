@@ -198,7 +198,7 @@ export function useAtlas() {
   useEffect(() => {
     let cancelled = false
     const load = () => {
-      apiClient.get('/addons/atlas/diplomatie/levels')
+      apiClient.get(`/addons/atlas/diplomatie/levels?_t=${Date.now()}`)
         .then(r => {
           if (cancelled) return
           const levels = r.data?.levels || {}

@@ -159,14 +159,14 @@ export class AtlasController {
   }
 
   @Get('diplomatie/levels')
-  @Header('Cache-Control', 'public, max-age=21600')
+  @Header('Cache-Control', 'private, no-cache')
   async diplomatieLevels() {
     const levels = await this.atlas.diplomatieLevels();
     return { levels };
   }
 
   @Get('diplomatie/:code/summary')
-  @Header('Cache-Control', 'public, max-age=86400')
+  @Header('Cache-Control', 'private, no-cache')
   async diplomatieSummary(@Param('code') code: string) {
     const summary = await this.atlas.diplomatieSummary(code.toUpperCase());
     if (!summary) {
@@ -176,7 +176,7 @@ export class AtlasController {
   }
 
   @Get('diplomatie/:code/detail')
-  @Header('Cache-Control', 'public, max-age=86400')
+  @Header('Cache-Control', 'private, no-cache')
   async diplomatieDetail(@Param('code') code: string) {
     const detail = await this.atlas.diplomatieDetail(code.toUpperCase());
     if (!detail) {
