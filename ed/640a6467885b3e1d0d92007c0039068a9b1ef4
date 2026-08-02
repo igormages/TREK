@@ -1,0 +1,29 @@
+terraform/terraform.tfvars.example
+  s_928cdab090412b::t_e084b410431436 52-55
+  s_6b2f41a8ae83d8::t_9b07fa9a380d1f 10-19
+  s_6b2f41a8ae83d8::t_532e48749d85bd 43-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "ed640a6467885b3e1d0d92007c0039068a9b1ef4",
+  "prompts": {},
+  "sessions": {
+    "s_6b2f41a8ae83d8": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a02d5e74-7881-446c-9e98-f5bbc9d27f07",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_928cdab090412b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0df54bba-7263-40c1-9f73-1526b005625e",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
