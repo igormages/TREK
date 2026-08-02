@@ -1,0 +1,19 @@
+.github/workflows/deploy-prod.yml
+  s_6b2f41a8ae83d8::t_1c80df8d2a7679 56-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "f11e7ea1ff5b854c877d2a48a1040342ad5c0f3f",
+  "prompts": {},
+  "sessions": {
+    "s_6b2f41a8ae83d8": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a02d5e74-7881-446c-9e98-f5bbc9d27f07",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
