@@ -1,0 +1,22 @@
+server/src/services/diplomatieService.ts
+  s_8babf7448b22fd::t_736937c1ffd6b9 161-165,169-171,174-212
+server/tests/unit/services/diplomatieService.test.ts
+  s_8babf7448b22fd::t_e76cbc31e06bbd 118,123,125,133,138-157
+  s_8babf7448b22fd::t_ba62806847acd2 158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "50ad37ea822f749c393c33f42a5858e6104c3f8c",
+  "prompts": {},
+  "sessions": {
+    "s_8babf7448b22fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b97cedfd-6663-4e57-a648-2e848b920c8e",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
