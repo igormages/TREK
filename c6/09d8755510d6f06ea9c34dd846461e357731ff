@@ -1,0 +1,161 @@
+server/tests/unit/services/diplomatieService.test.ts
+  s_cca89b00ec4bb7::t_73589ca1c37519 1-20,22-62
+  s_cca89b00ec4bb7::t_539759c0150ab9 21
+terraform/.gitignore
+  s_928cdab090412b::t_4a8ceafaf60924 1
+  s_6b2f41a8ae83d8::t_26e4da004db5c4 10
+  s_5a7320fac51d2d::t_3b6fd56bd7db83 2-9,11-14
+terraform/terraform.tfvars.example
+  s_928cdab090412b::t_dc06611340142e 2-6,9-10
+  s_5a7320fac51d2d::t_5a97f0714e0e28 1,12-16,22,24,26,28-29,44-45
+  s_006908f3246f11::t_b5634ba561a901 7-8,11,17-19,21,23,25,27,30-43
+  s_6b2f41a8ae83d8::t_cb78e2e1b5d398 20
+terraform/cloud-init.yml.tpl
+  s_006908f3246f11::t_69aa73a73117a1 6,9,12,14
+  s_5a7320fac51d2d::t_5d572d6449d921 1,4-5,8,10-11,13
+  s_006908f3246f11::t_4128f650d696af 2-3,7
+server/.gitignore
+  s_cca89b00ec4bb7::t_568ef6b2889685 2
+client/src/pages/atlas/AtlasDiplomatieLegend.tsx
+  s_cca89b00ec4bb7::t_1f7a0b41181012 1-46
+.github/workflows/deploy-prod.yml
+  s_6b2f41a8ae83d8::t_6ece3c3595af5c 33,38,40,46-50,62-63,66,69
+  s_6b2f41a8ae83d8::t_ae95445fda3557 1-32,34-37,39,41-45,51-61,64-65,67-68,70-87
+server/src/nest/atlas/atlas.service.ts
+  s_cca89b00ec4bb7::t_0cb11adeed8c0f 17-21
+  s_cca89b00ec4bb7::t_641fd91878ca63 85-96
+client/src/pages/AtlasPage.tsx
+  s_cca89b00ec4bb7::t_149922370e5327 12-13
+  s_cca89b00ec4bb7::t_761839a1c55742 91
+  s_cca89b00ec4bb7::t_7a05796ae8507c 116-117
+  s_cca89b00ec4bb7::t_8aac31cb1d5d06 89-90
+  s_cca89b00ec4bb7::t_17b2bb60594bc0 14
+  s_cca89b00ec4bb7::t_3bfb14af96d19d 142-169,171-173
+  s_cca89b00ec4bb7::t_fb0a861d167886 170
+server/src/nest/atlas/atlas.controller.ts
+  s_cca89b00ec4bb7::t_514e004d72f45a 160-186
+shared/src/i18n/fr/atlas.ts
+  s_cca89b00ec4bb7::t_53a62eb5b76e46 57-70
+shared/src/atlas/atlas.schema.ts
+  s_cca89b00ec4bb7::t_86624606f2d98c 280-315
+terraform/cloudflare.tf
+  s_928cdab090412b::t_218cbd9ff2b9ee 1-11,13-16,53-55,59,61
+  s_006908f3246f11::t_f96b64ca23c4d0 27-28,30-50
+  s_006908f3246f11::t_299306bbd8f911 51
+  s_928cdab090412b::t_1cfb2d728a7cdd 17-26,29,52,56-58,60
+  s_928cdab090412b::t_0dd325ec087fdd 12
+client/src/pages/atlas/useAtlas.ts
+  s_cca89b00ec4bb7::t_6fc068faafcc2d 884-886
+  s_cca89b00ec4bb7::t_f825b8b5f575cc 9-17
+  s_cca89b00ec4bb7::t_8477a72a50fa4d 81
+  s_cca89b00ec4bb7::t_2ef8e90beeaa7d 198,215-216
+  s_cca89b00ec4bb7::t_101b3765b1e256 420
+  s_cca89b00ec4bb7::t_774edbf0cd9b69 694-696
+  s_cca89b00ec4bb7::t_f12e294257555b 818-857
+  s_cca89b00ec4bb7::t_638e5d1c18e7fb 89
+  s_cca89b00ec4bb7::t_2fca0ddd0ce814 197,199-214
+  s_cca89b00ec4bb7::t_a7cd286b9bb13b 401
+  s_cca89b00ec4bb7::t_4e4d0e7477e00c 858-862
+  s_cca89b00ec4bb7::t_9225e2c1d3f386 111-119
+  s_cca89b00ec4bb7::t_4f11bdd62370d2 436-476
+  s_cca89b00ec4bb7::t_a8a4b4451126e6 887
+terraform/migration.tf
+  s_928cdab090412b::t_c944143f21fb64 9,19
+  s_928cdab090412b::t_5941c07b38abf3 1-8,10-18,20-22
+server/src/data/diplomatie-slugs.json
+  s_cca89b00ec4bb7::t_14b3bfb8bb5ab4 1-982
+terraform/main.tf
+  s_928cdab090412b::t_a7b5bc4483af8c 4-9,11,17-20
+  s_928cdab090412b::t_0b943bf0d0dba9 10,25-29,36,49,54,62,78,82,103
+  s_006908f3246f11::t_cec63b8db404a6 45
+  s_5a7320fac51d2d::t_80fd61e7f181d4 23,32-33
+  s_006908f3246f11::t_37502897340995 88-98
+  s_006908f3246f11::t_7f338a2fea3a24 56-61,63-65,73
+  s_5a7320fac51d2d::t_2fd8da30a50ee6 1-3,12-16,21-22,24,30-31,34-35,37-44,46-48,50-53,55,66-72,74-77,79-81,83-87,101-102,104-105
+  s_006908f3246f11::t_90e5f0da8ec450 99-100
+shared/src/i18n/en/atlas.ts
+  s_cca89b00ec4bb7::t_5ad0151278f13a 57-70
+terraform/provider.tf
+  s_5a7320fac51d2d::t_8f739345bc853a 1-5
+  s_928cdab090412b::t_0dcb0b2204a5bd 6
+  s_928cdab090412b::t_c2594706b503d5 7-11
+client/src/pages/atlas/AtlasDiplomatiePanel.tsx
+  s_cca89b00ec4bb7::t_a422c335456a37 1-161
+client/src/pages/atlas/AtlasDiplomatieDetail.tsx
+  s_cca89b00ec4bb7::t_0dc101641ea645 1-103
+client/src/index.css
+  s_cca89b00ec4bb7::t_e2ecf72e81d81a 82-93
+terraform/variables.tf
+  s_5a7320fac51d2d::t_e8aafac51abfba 1-19,21-31,33,35-37,39-40,65-66,117,119-123,125-129,131-136,138-143,145-150,152-156,158-162,164-166
+  s_928cdab090412b::t_f144e5bb498b67 38,41-43,45-48,57-60
+  s_928cdab090412b::t_fee8b23f833e34 20,32,34,44,49-56,61-64,79-80,83-84,97-114,118,124,130,137,144,151,157,163
+  s_928cdab090412b::t_dfbbf7b1a4e009 67-78,115-116
+  s_006908f3246f11::t_1b5579578fb5ed 81-82,85-96
+terraform/bootstrap.sh.tpl
+  s_006908f3246f11::t_2cdfa8a867c329 1-31,33-125
+  s_006908f3246f11::t_4703240a85583d 32
+.github/workflows/terraform-apply.yml
+  s_6b2f41a8ae83d8::t_9e174a78254e43 1-55
+terraform/versions.tf
+  s_928cdab090412b::t_8e9c43361395b3 9-12
+  s_5a7320fac51d2d::t_14542a9f8adb79 1-8,13-18
+terraform/outputs.tf
+  s_928cdab090412b::t_0042d74279c588 26-28,31-35
+  s_928cdab090412b::t_08d569c520697e 6-9,21-25,29-30,44
+  s_5a7320fac51d2d::t_be2ead325f3e54 45
+  s_5a7320fac51d2d::t_ad60e7a65b19e9 1-2,36-43,46-47
+  s_006908f3246f11::t_cca2fc3b05744a 10-20
+  s_006908f3246f11::t_de4b3ab04022e7 3-5
+server/src/services/diplomatieService.ts
+  s_cca89b00ec4bb7::t_db2916ad6be501 1-61,63-270,287-299,301-369
+  s_cca89b00ec4bb7::t_a7521daebc144d 62
+  s_cca89b00ec4bb7::t_98b370b68f9fd7 271-286,300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "c609d8755510d6f06ea9c34dd846461e357731ff",
+  "prompts": {},
+  "sessions": {
+    "s_006908f3246f11": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f812e5b3-2338-4fbe-a945-5f5344405e66",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_5a7320fac51d2d": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "123bbff7-17a0-4575-8516-45c1031c9708",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_6b2f41a8ae83d8": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "a02d5e74-7881-446c-9e98-f5bbc9d27f07",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_928cdab090412b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0df54bba-7263-40c1-9f73-1526b005625e",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    },
+    "s_cca89b00ec4bb7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "adce203e-a273-4612-b24b-d8ed4082929f",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
