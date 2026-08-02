@@ -50,6 +50,32 @@ export interface BucketItem {
   target_date: string | null
 }
 
+/** Resolve a bucket item's country_code (A2 or A3) to ISO-3166-1 alpha-2. */
+export function resolveBucketCountryA2(countryCode: string | null): string | null {
+  if (!countryCode) return null
+  if (countryCode.length === 2) return countryCode.toUpperCase()
+  const entry = Object.entries(A2_TO_A3).find(([, v]) => v === countryCode)
+  return entry ? entry[0] : null
+}
+
+/**
+ * Order bucket items for the map itinerary: dated items chronologically (asc),
+ * undated items at the end preserving the API list order (created_at DESC).
+ */
+export function sortBucketItinerary(items: BucketItem[]): BucketItem[] {
+  return [...items]
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const dateA = a.item.target_date
+      const dateB = b.item.target_date
+      if (dateA && dateB) return dateA.localeCompare(dateB)
+      if (dateA && !dateB) return -1
+      if (!dateA && dateB) return 1
+      return a.index - b.index
+    })
+    .map(({ item }) => item)
+}
+
 // Normalize a region name for matching: strip diacritics (the geocoder and the
 // bundled boundaries don't always agree on accenting, e.g. "Ile-de-France" vs
 // "Île-de-France") and fold dash variants (en/em dash vs hyphen) to a plain

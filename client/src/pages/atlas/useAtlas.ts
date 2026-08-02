@@ -5,7 +5,8 @@ import { useSettingsStore } from '../../store/settingsStore'
 import apiClient, { mapsApi, pluginsApi, type PluginAtlasLayer } from '../../api/client'
 import L from 'leaflet'
 import type { GeoJsonFeatureCollection } from '../../types'
-import { A2_TO_A3, normalizeRegionName, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
+import { A2_TO_A3, normalizeRegionName, resolveBucketCountryA2, sortBucketItinerary, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
+import { geodesicArcs } from '../../components/Map/flightGeodesy'
 import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail } from '@trek/shared'
 
 const ADVISORY_COLORS: Record<DiplomatieAdvisoryLevel, string> = {
@@ -103,6 +104,7 @@ export function useAtlas() {
   const [bucketPoiYear, setBucketPoiYear] = useState(0)
   const [bucketTab, setBucketTab] = useState<'stats' | 'bucket'>('stats')
   const bucketMarkersRef = useRef<any>(null)
+  const bucketRouteRef = useRef<L.LayerGroup | null>(null)
 
   const [atlas_country_search, set_atlas_country_search] = useState('')
   const [atlas_country_results, set_atlas_country_results] = useState<{ code: string; label: string }[]>([])
@@ -805,6 +807,59 @@ export function useAtlas() {
     })
     bucketMarkersRef.current = L.layerGroup(markers).addTo(mapInstance.current)
   }, [bucketList])
+
+  // Bucket list itinerary — great-circle arcs between stops in chronological / list order
+  useEffect(() => {
+    if (!mapInstance.current) return
+    if (bucketRouteRef.current) {
+      mapInstance.current.removeLayer(bucketRouteRef.current)
+      bucketRouteRef.current = null
+    }
+    if (bucketList.length < 2 || !geoData) return
+
+    const getCoords = (item: BucketItem): L.LatLngTuple | null => {
+      if (item.lat != null && item.lng != null) return [item.lat, item.lng]
+      const a2 = resolveBucketCountryA2(item.country_code)
+      if (!a2) return null
+      const layer = country_layer_by_a2_ref.current[a2]
+      if (!layer?.getBounds) return null
+      try {
+        const center = layer.getBounds().getCenter()
+        return [center.lat, center.lng]
+      } catch { return null }
+    }
+
+    const coords = sortBucketItinerary(bucketList).map(getCoords).filter((c): c is L.LatLngTuple => c !== null)
+    if (coords.length < 2) return
+
+    if (!mapInstance.current.getPane('bucketRoutePane')) {
+      mapInstance.current.createPane('bucketRoutePane')
+      const pane = mapInstance.current.getPane('bucketRoutePane')!
+      pane.style.zIndex = '403'
+      pane.style.pointerEvents = 'none'
+    }
+
+    const routeColor = dark ? '#fbbf24' : '#d97706'
+    const lines: L.Polyline[] = []
+    for (let i = 0; i < coords.length - 1; i++) {
+      const a = coords[i], b = coords[i + 1]
+      if (a[0] === b[0] && a[1] === b[1]) continue
+      for (const arc of geodesicArcs(a, b, true)) {
+        lines.push(L.polyline(arc, {
+          pane: 'bucketRoutePane',
+          color: routeColor,
+          weight: 2,
+          opacity: 0.55,
+          dashArray: '6 4',
+          lineCap: 'round',
+          lineJoin: 'round',
+          interactive: false,
+        }))
+      }
+    }
+    if (lines.length === 0) return
+    bucketRouteRef.current = L.layerGroup(lines).addTo(mapInstance.current)
+  }, [bucketList, geoData, data, dark])
 
   const loadCountryDetail = async (code: string): Promise<void> => {
     setSelectedCountry(code)

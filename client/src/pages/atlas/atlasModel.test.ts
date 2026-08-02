@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { A2_TO_A3, normalizeRegionName } from './atlasModel';
+import { A2_TO_A3, normalizeRegionName, resolveBucketCountryA2, sortBucketItinerary, type BucketItem } from './atlasModel';
 
 describe('normalizeRegionName', () => {
   it('matches names that only differ by diacritics (Ile-de-France vs Île-de-France)', () => {
@@ -35,5 +35,41 @@ describe('A2_TO_A3 hardcoded entries (#1609)', () => {
     const isoA2 = feature.properties.ISO_A2;
     const countryCode = a3ToA2Entry ? a3ToA2Entry[0] : (isoA2 && isoA2 !== '-99' ? isoA2 : null);
     expect(countryCode).toBe('XK');
+  });
+});
+
+describe('resolveBucketCountryA2', () => {
+  it('returns A2 codes uppercased', () => {
+    expect(resolveBucketCountryA2('jp')).toBe('JP');
+  });
+
+  it('resolves A3 codes via A2_TO_A3', () => {
+    expect(resolveBucketCountryA2('FRA')).toBe('FR');
+  });
+
+  it('returns null for unknown codes', () => {
+    expect(resolveBucketCountryA2(null)).toBeNull();
+    expect(resolveBucketCountryA2('ZZZ')).toBeNull();
+  });
+});
+
+describe('sortBucketItinerary', () => {
+  const item = (id: number, target_date: string | null): BucketItem => ({
+    id, name: `Item ${id}`, lat: null, lng: null, country_code: null, notes: null, target_date,
+  });
+
+  it('sorts dated items chronologically', () => {
+    const sorted = sortBucketItinerary([item(1, '2027-06'), item(2, '2026-03'), item(3, '2028-01')]);
+    expect(sorted.map(i => i.id)).toEqual([2, 1, 3]);
+  });
+
+  it('places dated items before undated ones', () => {
+    const sorted = sortBucketItinerary([item(1, null), item(2, '2027-01'), item(3, null)]);
+    expect(sorted.map(i => i.id)).toEqual([2, 1, 3]);
+  });
+
+  it('preserves API list order for undated items', () => {
+    const sorted = sortBucketItinerary([item(1, null), item(2, null), item(3, null)]);
+    expect(sorted.map(i => i.id)).toEqual([1, 2, 3]);
   });
 });
