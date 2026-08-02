@@ -50,6 +50,8 @@ services:
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
+      # Décommenter pour servir le frontend depuis un dossier local (deploy-static) :
+      # - ./static:/app/server/public:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]

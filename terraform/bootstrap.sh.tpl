@@ -50,7 +50,7 @@ WantedBy=multi-user.target
 UNIT
 
 # ── TREK app ─────────────────────────────────────────────────────────────────
-mkdir -p /opt/trek /var/lib/trek/data /var/lib/trek/uploads
+mkdir -p /opt/trek /var/lib/trek/data /var/lib/trek/uploads /var/lib/trek/static
 
 cat > /opt/trek/.env <<'ENV'
 %{ for key, value in trek_env ~}
@@ -83,6 +83,8 @@ services:
     volumes:
       - /var/lib/trek/data:/app/data
       - /var/lib/trek/uploads:/app/uploads
+      # Décommenter pour deploy-static (rsync frontend sans rebuild image) :
+      # - /var/lib/trek/static:/app/server/public:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s

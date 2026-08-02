@@ -1,0 +1,33 @@
+# Template production pour igormages/TREK (GHCR + volume static optionnel).
+# Copier vers /opt/trek/docker-compose.yml sur le serveur.
+services:
+  app:
+    image: ghcr.io/igormages/trek:latest
+    container_name: trek
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    tmpfs:
+      - /tmp:noexec,nosuid,size=128m
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - /opt/trek/.env
+    volumes:
+      - /var/lib/trek/data:/app/data
+      - /var/lib/trek/uploads:/app/uploads
+      # Décommenter pour activer deploy-static (rsync sans rebuild image) :
+      # - /var/lib/trek/static:/app/server/public:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

@@ -1,0 +1,71 @@
+name: Deploy Static Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-static
+  cancel-in-progress: true
+
+env:
+  STATIC_DIR: /var/lib/trek/static
+
+jobs:
+  deploy-static:
+    if: github.repository == 'igormages/TREK'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Build client
+        run: |
+          npm ci --workspace=shared --workspace=client
+          npm run build --workspace=shared
+          npm run build --workspace=client
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          if [[ "$DEPLOY_HOST" == *:* ]]; then
+            SSH_TARGET="[${DEPLOY_HOST}]"
+          else
+            SSH_TARGET="${DEPLOY_HOST}"
+          fi
+          ssh-keyscan -T 15 -H "${SSH_TARGET}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          cat >> ~/.ssh/config <<EOF
+          Host trek-prod
+            HostName ${SSH_TARGET}
+            User root
+            StrictHostKeyChecking accept-new
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+
+      - name: Rsync static files to production
+        run: |
+          ssh trek-prod "mkdir -p ${STATIC_DIR}"
+          rsync -avz --delete \
+            --exclude '.DS_Store' \
+            client/dist/ \
+            trek-prod:${STATIC_DIR}/
+
+      - name: Verify static files on server
+        run: |
+          ssh trek-prod bash -c "
+            test -f ${STATIC_DIR}/index.html || { echo 'index.html manquant'; exit 1; }
+            echo \"Fichiers statiques déployés: \$(find ${STATIC_DIR} -type f | wc -l) fichiers\"
+          "
