@@ -1,0 +1,29 @@
+server/tests/unit/services/diplomatieService.test.ts
+  s_100514319cd037::t_edae7d1fc6c03b 273,281-285
+  s_100514319cd037::t_bb0c7b0998396b 167-207
+  s_100514319cd037::t_4bb2496e7599b5 234-249,286
+  s_100514319cd037::t_b6e1b406a97e24 287
+server/src/services/diplomatieService.ts
+  s_100514319cd037::t_f53e7349940abc 367
+  s_100514319cd037::t_8535ddb12caf76 219-221
+  s_100514319cd037::t_6ba20acc9d7c3c 409
+  s_100514319cd037::t_c3691af62fb19f 295-300,302-303,305
+  s_100514319cd037::t_2bf4135a25b62d 183,193-194
+  s_100514319cd037::t_3d1e592485b76b 54-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "9840633f10c92250cbcfc27e87314c08e53b03c5",
+  "prompts": {},
+  "sessions": {
+    "s_100514319cd037": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "612bb467-6592-4b4b-985e-63497f7df384",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
