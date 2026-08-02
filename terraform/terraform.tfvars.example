@@ -7,6 +7,16 @@
 #   CLOUDFLARE_API_KEY="..."
 #   CLOUDFLARE_EMAIL="..."
 #
+# Secrets GitHub Actions (repo igormages/TREK → Settings → Secrets) :
+#   SSH_PRIVATE_KEY, SSH_PUBLIC_KEY, DEPLOY_HOST (IP ou IPv6 du serveur)
+#   SCW_ACCESS_KEY, SCW_SECRET_KEY, SCW_DEFAULT_PROJECT_ID
+#   CLOUDFLARE_API_KEY, CLOUDFLARE_EMAIL
+#   TREK_ADMIN_EMAIL, TREK_ADMIN_PASSWORD, TREK_ENCRYPTION_KEY
+#
+# Si SSH échoue après création de l'instance :
+#   scw instance ssh add-key server-id=<id> public-key="$(cat ~/.ssh/id_rsa.pub)"
+#   scw instance server reboot <id>
+#
 # Charger le .env avant terraform :
 #   set -a && source .env && set +a && unset CLOUDFLARE_API_TOKEN
 
@@ -30,12 +40,18 @@ timezone            = "Europe/Paris"
 # Cloudflare Tunnel (0 € — remplace LB + IPv4)
 enable_cloudflare        = true
 enable_cloudflare_tunnel = true
+enable_ssh               = true   # requis pour le déploiement GitHub Actions (SSH)
+# enable_ipv4            = true   # optionnel (~3 €/mois) si IPv6 indisponible depuis le runner CI
 cloudflare_account_id    = "votre-account-id-cloudflare"
 cloudflare_zone_name     = "mages.pro"
 cloudflare_api_key       = "..."
 cloudflare_email         = "..."
 domain_name              = "trek.mages.pro"
 force_https              = true
+
+# IPv6 seule (gratuite) — pas besoin d'IPv4 avec Cloudflare Tunnel
+enable_ipv4 = false
+enable_ssh  = false
 
 # Migration one-shot depuis snapshots (désactiver après succès)
 # enable_data_migration       = true
