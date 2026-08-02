@@ -361,7 +361,7 @@ export function useAtlas() {
         const visited = visitedA3.has(a3)
         return {
           fillColor: visited ? colorForCode(a3) : (dark ? '#1e1e2e' : '#e2e8f0'),
-          fillOpacity: visited ? 0.7 : 0.3,
+          fillOpacity: visited ? 0.45 : 0.15,
           color: dark ? '#333' : '#cbd5e1',
           weight: 0.5,
         }
@@ -400,7 +400,7 @@ export function useAtlas() {
           })
           layer.on('click', () => openDiplomatieRef.current(c.code))
           layer.on('mouseover', (e) => {
-            e.target.setStyle({ fillOpacity: 0.9, weight: 2, color: dark ? '#818cf8' : '#4f46e5' })
+            e.target.setStyle({ fillOpacity: 0.6, weight: 2, color: dark ? '#818cf8' : '#4f46e5' })
           })
           layer.on('mouseout', (e) => {
             geoLayerRef.current.resetStyle(e.target)
@@ -419,7 +419,7 @@ export function useAtlas() {
             })
             layer.on('click', () => openDiplomatieRef.current(countryCode))
             layer.on('mouseover', (e) => {
-              e.target.setStyle({ fillOpacity: 0.5, weight: 1.5, color: dark ? '#555' : '#94a3b8' })
+              e.target.setStyle({ fillOpacity: 0.3, weight: 1.5, color: dark ? '#555' : '#94a3b8' })
             })
             layer.on('mouseout', (e) => {
               geoLayerRef.current.resetStyle(e.target)
@@ -469,7 +469,7 @@ export function useAtlas() {
         const a3 = featureA3(feature)
         const level = a3ToLevel[a3] || 'unknown'
         const color = ADVISORY_COLORS[level]
-        return { fillColor: color, fillOpacity: 0.22, color, weight: 1.2, dashArray: '6 4' }
+        return { fillColor: color, fillOpacity: 0.14, color, weight: 1.2, dashArray: '6 4' }
       },
     } as L.GeoJSONOptions).addTo(mapInstance.current)
   }, [geoData, advisoryLevels, dark, loading])
@@ -591,7 +591,7 @@ export function useAtlas() {
         const visited = isVisitedFeature(feature)
         return visited ? {
           fillColor: a2ColorMap[countryA2] || '#6366f1',
-          fillOpacity: 0.85,
+          fillOpacity: 0.55,
           color: dark ? '#888' : '#64748b',
           weight: 1.2,
         } : {
@@ -635,7 +635,7 @@ export function useAtlas() {
         })
         layer.on('mouseover', (e: any) => {
           e.target.setStyle(visited
-            ? { fillOpacity: 0.95, weight: 2, color: dark ? '#818cf8' : '#4f46e5' }
+            ? { fillOpacity: 0.7, weight: 2, color: dark ? '#818cf8' : '#4f46e5' }
             : { fillOpacity: 0.15, fillColor: dark ? '#818cf8' : '#4f46e5', weight: 1.5, color: dark ? '#818cf8' : '#4f46e5' }
           )
           const tt = regionTooltipRef.current
