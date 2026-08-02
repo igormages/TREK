@@ -408,6 +408,37 @@ function startAirTrailSync(): void {
   }, { timezone: tz });
 }
 
+// France Diplomatie advisories: monthly refresh + initial sync when DB is empty.
+let diplomatieSyncTask: ScheduledTask | null = null;
+
+function startDiplomatieSync(): void {
+  if (diplomatieSyncTask) { diplomatieSyncTask.stop(); diplomatieSyncTask = null; }
+
+  try {
+    const { isDiplomatieDataEmpty, ensureDiplomatieSync } = require('./services/diplomatieService');
+    if (isDiplomatieDataEmpty()) {
+      logInfo('Diplomatie: no data in DB — starting initial sync');
+      ensureDiplomatieSync();
+    }
+  } catch (err: unknown) {
+    logError(`Diplomatie startup check failed: ${err instanceof Error ? err.message : err}`);
+  }
+
+  const tz = process.env.TZ || 'UTC';
+  diplomatieSyncTask = cron.schedule('0 4 1 * *', async () => {
+    try {
+      const { syncAllDiplomatieData } = require('./services/diplomatieService');
+      const result = await syncAllDiplomatieData();
+      if (result) {
+        logInfo(`Diplomatie monthly sync: ${result.synced} synced, ${result.failed} failed`);
+      }
+    } catch (err: unknown) {
+      logError(`Diplomatie monthly sync failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+  logInfo('Diplomatie: monthly sync scheduled (1st of month, 04:00)');
+}
+
 function stop(): void {
   if (currentTask) { currentTask.stop(); currentTask = null; }
   if (demoTask) { demoTask.stop(); demoTask = null; }
@@ -417,6 +448,7 @@ function stop(): void {
   if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
   if (placePhotoCacheTask) { placePhotoCacheTask.stop(); placePhotoCacheTask = null; }
   if (airtrailSyncTask) { airtrailSyncTask.stop(); airtrailSyncTask = null; }
+  if (diplomatieSyncTask) { diplomatieSyncTask.stop(); diplomatieSyncTask = null; }
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, loadSettings, saveSettings, VALID_INTERVALS };
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, startDiplomatieSync, loadSettings, saveSettings, VALID_INTERVALS };

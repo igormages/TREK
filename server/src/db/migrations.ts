@@ -3701,6 +3701,26 @@ function runMigrations(db: Database.Database): void {
       `);
       db.exec('CREATE INDEX IF NOT EXISTS idx_hidden_regions_user ON hidden_regions (user_id);');
     },
+
+    // France Diplomatie travel advisories — scraped monthly and served from DB instead
+    // of per-request scraping + disk cache.
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS diplomatie_advisories (
+          country_code TEXT PRIMARY KEY,
+          level TEXT NOT NULL DEFAULT 'unknown',
+          level_label TEXT NOT NULL DEFAULT 'Inconnu',
+          risks TEXT NOT NULL DEFAULT '',
+          visa TEXT NOT NULL DEFAULT '',
+          other_info TEXT NOT NULL DEFAULT '',
+          last_updated TEXT,
+          sections TEXT NOT NULL DEFAULT '[]',
+          source_url TEXT NOT NULL DEFAULT '',
+          synced_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_diplomatie_synced_at ON diplomatie_advisories (synced_at);');
+    },
   ];
 
   if (currentVersion < migrations.length) {

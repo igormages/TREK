@@ -1,22 +1,78 @@
-import { describe, it, expect } from 'vitest';
-import { parseAdvisoryLevel, getDiplomatieMeta, listDiplomatieCodes } from '../../../src/services/diplomatieService';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
+import Database from 'better-sqlite3';
+
+const testDb = new Database(':memory:');
+testDb.exec(`
+  CREATE TABLE diplomatie_advisories (
+    country_code TEXT PRIMARY KEY,
+    level TEXT NOT NULL DEFAULT 'unknown',
+    level_label TEXT NOT NULL DEFAULT 'Inconnu',
+    risks TEXT NOT NULL DEFAULT '',
+    visa TEXT NOT NULL DEFAULT '',
+    other_info TEXT NOT NULL DEFAULT '',
+    last_updated TEXT,
+    sections TEXT NOT NULL DEFAULT '[]',
+    source_url TEXT NOT NULL DEFAULT '',
+    synced_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+vi.mock('../../../src/services/auditLog', () => ({
+  logInfo: vi.fn(),
+  logError: vi.fn(),
+}));
+
+vi.mock('../../../src/db/database', () => ({ db: testDb }));
+
+let svc: typeof import('../../../src/services/diplomatieService');
+
+beforeAll(async () => {
+  svc = await import('../../../src/services/diplomatieService');
+});
+
+beforeEach(() => {
+  testDb.exec('DELETE FROM diplomatie_advisories');
+});
+
+afterAll(() => {
+  testDb.close();
+});
+
+function seedRow(code: string, level: string, overrides: Record<string, string> = {}): void {
+  testDb.prepare(`
+    INSERT INTO diplomatie_advisories (
+      country_code, level, level_label, risks, visa, other_info,
+      last_updated, sections, source_url
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    code,
+    level,
+    overrides.level_label ?? 'Vigilance normale',
+    overrides.risks ?? 'Risques modérés',
+    overrides.visa ?? 'Passeport valide',
+    overrides.other_info ?? '',
+    overrides.last_updated ?? '1 janvier 2026',
+    overrides.sections ?? JSON.stringify([{ id: 'securite', title: 'Sécurité', html: '<p>Test</p>' }]),
+    overrides.source_url ?? 'https://example.com/es',
+  );
+}
 
 describe('diplomatieService', () => {
   describe('getDiplomatieMeta', () => {
     it('resolves known ISO codes', () => {
-      expect(getDiplomatieMeta('ES')?.slug).toBe('espagne');
-      expect(getDiplomatieMeta('DE')?.slug).toBe('allemagne');
-      expect(getDiplomatieMeta('US')?.slug).toBe('etats-unis');
+      expect(svc.getDiplomatieMeta('ES')?.slug).toBe('espagne');
+      expect(svc.getDiplomatieMeta('DE')?.slug).toBe('allemagne');
+      expect(svc.getDiplomatieMeta('US')?.slug).toBe('etats-unis');
     });
 
     it('returns null for unknown codes', () => {
-      expect(getDiplomatieMeta('XX')).toBeNull();
+      expect(svc.getDiplomatieMeta('XX')).toBeNull();
     });
   });
 
   describe('listDiplomatieCodes', () => {
     it('covers most world countries', () => {
-      const codes = listDiplomatieCodes();
+      const codes = svc.listDiplomatieCodes();
       expect(codes.length).toBeGreaterThan(180);
       expect(codes).toContain('ES');
       expect(codes).toContain('JP');
@@ -27,36 +83,75 @@ describe('diplomatieService', () => {
   describe('parseAdvisoryLevel', () => {
     it('detects vigilance normale (green)', () => {
       const html = '<h3>Zones de vigilance</h3><p>L\'ensemble du pays est en vigilance normale.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('green');
+      expect(svc.parseAdvisoryLevel(html)).toBe('green');
     });
 
     it('detects formellement déconseillé (red)', () => {
       const html = '<h3>Zones de vigilance</h3><p>La totalité du territoire est formellement déconseillée.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('red');
+      expect(svc.parseAdvisoryLevel(html)).toBe('red');
     });
 
     it('detects zones formellement déconseillées heading (red)', () => {
       const html = '<h3>Zones de vigilance</h3><h4>Zones formellement déconseillées</h4><p>Frontière sud.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('red');
+      expect(svc.parseAdvisoryLevel(html)).toBe('red');
     });
 
     it('detects vigilance renforcée (yellow)', () => {
       const html = '<h3>Zones de vigilance</h3><h4>Zones de vigilance renforcée (jaune sur la carte)</h4><p>Le sud.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('yellow');
+      expect(svc.parseAdvisoryLevel(html)).toBe('yellow');
     });
 
     it('detects déconseillé sauf raison impérative (orange)', () => {
       const html = '<h3>Zones de vigilance</h3><p>Ce pays est déconseillé sauf raison impérative.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('orange');
+      expect(svc.parseAdvisoryLevel(html)).toBe('orange');
     });
 
     it('defaults to green when vigilance section exists without explicit level', () => {
       const html = '<h3>Zones de vigilance</h3><h4>Avertissement concernant les animaux sauvages</h4><p>Des ours.</p>';
-      expect(parseAdvisoryLevel(html)).toBe('green');
+      expect(svc.parseAdvisoryLevel(html)).toBe('green');
     });
 
     it('returns unknown when no vigilance section', () => {
-      expect(parseAdvisoryLevel('<p>Rien ici.</p>')).toBe('unknown');
+      expect(svc.parseAdvisoryLevel('<p>Rien ici.</p>')).toBe('unknown');
+    });
+  });
+
+  describe('database reads', () => {
+    it('isDiplomatieDataEmpty reflects row count', () => {
+      expect(svc.isDiplomatieDataEmpty()).toBe(true);
+      seedRow('ES', 'green');
+      expect(svc.isDiplomatieDataEmpty()).toBe(false);
+    });
+
+    it('getAllAdvisoryLevels returns levels from DB', async () => {
+      seedRow('ES', 'green');
+      seedRow('FR', 'yellow');
+      const levels = await svc.getAllAdvisoryLevels();
+      expect(levels).toEqual({ ES: 'green', FR: 'yellow' });
+    });
+
+    it('getCountrySummary returns stored summary', async () => {
+      seedRow('ES', 'green', { risks: 'Sécurité bonne', visa: 'CNI acceptée' });
+      const summary = await svc.getCountrySummary('es');
+      expect(summary).toMatchObject({
+        code: 'ES',
+        name: 'Espagne',
+        level: 'green',
+        risks: 'Sécurité bonne',
+        visa: 'CNI acceptée',
+        lastUpdated: '1 janvier 2026',
+      });
+    });
+
+    it('getCountryDetail returns stored sections', async () => {
+      seedRow('ES', 'green');
+      const detail = await svc.getCountryDetail('ES');
+      expect(detail?.sections).toHaveLength(1);
+      expect(detail?.sections[0].html).toContain('<p>Test</p>');
+    });
+
+    it('getAdvisoryLevel returns unknown when country not synced', async () => {
+      expect(await svc.getAdvisoryLevel('ES')).toBe('unknown');
     });
   });
 });

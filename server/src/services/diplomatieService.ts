@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import path from 'path';
 import slugData from '../data/diplomatie-slugs.json';
+import { db } from '../db/database';
+import { logError, logInfo } from './auditLog';
 
 /** Advisory level from France Diplomatie travel recommendations. */
 export type DiplomatieAdvisoryLevel = 'red' | 'orange' | 'yellow' | 'green' | 'unknown';
@@ -32,8 +32,6 @@ export interface DiplomatieDetail {
 
 const BASE = 'https://www.diplomatie.gouv.fr';
 const USER_AGENT = 'Trek-Atlas/1.0 (+https://github.com/liketrek/TREK)';
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
-const LEVELS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h for bulk levels
 
 const SLUGS = slugData as Record<string, DiplomatieCountryMeta>;
 
@@ -52,61 +50,37 @@ const LEVEL_LABELS: Record<DiplomatieAdvisoryLevel, string> = {
   unknown: 'Inconnu',
 };
 
-interface CacheEntry<T> {
-  data: T;
-  ts: number;
+interface DiplomatieRow {
+  country_code: string;
+  level: string;
+  level_label: string;
+  risks: string;
+  visa: string;
+  other_info: string;
+  last_updated: string | null;
+  sections: string;
+  source_url: string;
+  synced_at: string;
 }
 
-const memoryCache = new Map<string, CacheEntry<unknown>>();
-let levelsCache: CacheEntry<Record<string, DiplomatieAdvisoryLevel>> | null = null;
-let levelsWarmInProgress = false;
+let syncInProgress = false;
 
-const CACHE_DIR = process.env.TREK_DATA_DIR
-  ? path.join(process.env.TREK_DATA_DIR, 'diplomatie-cache')
-  : path.join(__dirname, '..', '..', 'data', 'diplomatie-cache');
-
-function ensureCacheDir(): void {
-  if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
-}
-
-function diskCachePath(key: string): string {
-  return path.join(CACHE_DIR, `${key}.json`);
-}
-
-function readDiskCache<T>(key: string, ttl: number): T | null {
-  try {
-    const p = diskCachePath(key);
-    if (!existsSync(p)) return null;
-    const entry = JSON.parse(readFileSync(p, 'utf8')) as CacheEntry<T>;
-    if (Date.now() - entry.ts > ttl) return null;
-    return entry.data;
-  } catch {
-    return null;
-  }
-}
-
-function writeDiskCache<T>(key: string, data: T): void {
-  try {
-    ensureCacheDir();
-    writeFileSync(diskCachePath(key), JSON.stringify({ data, ts: Date.now() }));
-  } catch { /* non-critical */ }
-}
-
-function getCached<T>(key: string, ttl: number): T | null {
-  const mem = memoryCache.get(key) as CacheEntry<T> | undefined;
-  if (mem && Date.now() - mem.ts < ttl) return mem.data;
-  const disk = readDiskCache<T>(key, ttl);
-  if (disk) {
-    memoryCache.set(key, { data: disk, ts: Date.now() });
-    return disk;
-  }
-  return null;
-}
-
-function setCache<T>(key: string, data: T): void {
-  memoryCache.set(key, { data, ts: Date.now() });
-  writeDiskCache(key, data);
-}
+const UPSERT = db.prepare(`
+  INSERT INTO diplomatie_advisories (
+    country_code, level, level_label, risks, visa, other_info,
+    last_updated, sections, source_url, synced_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(country_code) DO UPDATE SET
+    level = excluded.level,
+    level_label = excluded.level_label,
+    risks = excluded.risks,
+    visa = excluded.visa,
+    other_info = excluded.other_info,
+    last_updated = excluded.last_updated,
+    sections = excluded.sections,
+    source_url = excluded.source_url,
+    synced_at = CURRENT_TIMESTAMP
+`);
 
 export function getDiplomatieMeta(code: string): DiplomatieCountryMeta | null {
   return SLUGS[code.toUpperCase()] ?? null;
@@ -114,6 +88,23 @@ export function getDiplomatieMeta(code: string): DiplomatieCountryMeta | null {
 
 export function listDiplomatieCodes(): string[] {
   return Object.keys(SLUGS);
+}
+
+export function isDiplomatieDataEmpty(): boolean {
+  const row = db.prepare('SELECT COUNT(*) AS c FROM diplomatie_advisories').get() as { c: number };
+  return row.c === 0;
+}
+
+export function ensureDiplomatieSync(): void {
+  if (!isDiplomatieDataEmpty()) return;
+  void syncAllDiplomatieData()
+    .then((result) => {
+      if (!result) return;
+      logInfo(`Diplomatie initial sync complete: ${result.synced} synced, ${result.failed} failed`);
+    })
+    .catch((err: unknown) => {
+      logError(`Diplomatie initial sync failed: ${err instanceof Error ? err.message : err}`);
+    });
 }
 
 async function fetchPage(url: string): Promise<string | null> {
@@ -170,7 +161,6 @@ function extractLastUpdated(html: string): string | null {
 /** Parse advisory level from the security page HTML. */
 export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   const main = extractMainContent(html);
-  // Find content after the vigilance zones heading block
   const zoneIdx = main.lastIndexOf('Zones de vigilance');
   const block = zoneIdx >= 0 ? main.slice(zoneIdx, zoneIdx + 12000) : main;
   const text = textContent(block);
@@ -190,7 +180,6 @@ export function parseAdvisoryLevel(html: string): DiplomatieAdvisoryLevel {
   if (hasOrange) return 'orange';
   if (hasYellow) return 'yellow';
   if (hasGreen) return 'green';
-  // Page exists but no explicit zone → assume normal
   if (zoneIdx >= 0) return 'green';
   return 'unknown';
 }
@@ -242,128 +231,149 @@ function countryUrl(slug: string, suffix: string): string {
   return `${BASE}/fr/information-par-pays/${slug}/${suffix}`;
 }
 
+function parseSections(sectionResults: { id: string; title: string; html: string | null }[]): DiplomatieDetail['sections'] {
+  const sections: DiplomatieDetail['sections'] = [];
+  for (const section of sectionResults) {
+    if (!section.html) continue;
+    const body = extractArticleBody(section.html);
+    if (body.trim()) {
+      sections.push({ id: section.id, title: section.title, html: body });
+    }
+  }
+  return sections;
+}
+
+async function scrapeCountry(code: string): Promise<boolean> {
+  const upper = code.toUpperCase();
+  const meta = getDiplomatieMeta(upper);
+  if (!meta) return false;
+
+  const securityUrl = countryUrl(meta.slug, 'conseils-aux-voyageurs-securite');
+  const entryUrl = countryUrl(meta.slug, 'conseils-aux-voyageurs-entree-sejour');
+  const healthUrl = countryUrl(meta.slug, 'conseils-aux-voyageurs-sante');
+
+  const [securityHtml, entryHtml, healthHtml, ...detailHtmls] = await Promise.all([
+    fetchPage(securityUrl),
+    fetchPage(entryUrl),
+    fetchPage(healthUrl),
+    ...SECTIONS.map((s) => fetchPage(countryUrl(meta.slug, s.suffix))),
+  ]);
+
+  if (!securityHtml && !entryHtml) return false;
+
+  const level = securityHtml ? parseAdvisoryLevel(securityHtml) : 'unknown';
+  const sections = parseSections(SECTIONS.map((s, i) => ({
+    id: s.id,
+    title: s.title,
+    html: detailHtmls[i],
+  })));
+
+  UPSERT.run(
+    upper,
+    level,
+    LEVEL_LABELS[level],
+    securityHtml ? extractRisksSummary(securityHtml) : '',
+    entryHtml ? extractVisaSummary(entryHtml) : '',
+    securityHtml ? extractOtherInfo(securityHtml, healthHtml) : '',
+    securityHtml ? extractLastUpdated(securityHtml) : null,
+    JSON.stringify(sections),
+    securityUrl,
+  );
+
+  return true;
+}
+
+export async function syncAllDiplomatieData(): Promise<{ synced: number; failed: number } | null> {
+  if (syncInProgress) return null;
+  syncInProgress = true;
+
+  try {
+    const codes = listDiplomatieCodes();
+    let synced = 0;
+    let failed = 0;
+
+    const BATCH = 8;
+    for (let i = 0; i < codes.length; i += BATCH) {
+      const batch = codes.slice(i, i + BATCH);
+      const results = await Promise.all(batch.map(async (code) => scrapeCountry(code)));
+      for (const ok of results) {
+        if (ok) synced++;
+        else failed++;
+      }
+    }
+
+    return { synced, failed };
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+function rowToSummary(row: DiplomatieRow, name: string): DiplomatieSummary {
+  return {
+    code: row.country_code,
+    name,
+    level: row.level as DiplomatieAdvisoryLevel,
+    levelLabel: row.level_label,
+    risks: row.risks,
+    visa: row.visa,
+    otherInfo: row.other_info,
+    lastUpdated: row.last_updated,
+    sourceUrl: row.source_url,
+  };
+}
+
+function rowToDetail(row: DiplomatieRow, name: string): DiplomatieDetail {
+  let sections: DiplomatieDetail['sections'] = [];
+  try {
+    sections = JSON.parse(row.sections) as DiplomatieDetail['sections'];
+  } catch { /* keep empty */ }
+
+  return {
+    code: row.country_code,
+    name,
+    sections,
+    sourceUrl: row.source_url,
+  };
+}
+
 export async function getAdvisoryLevel(code: string): Promise<DiplomatieAdvisoryLevel> {
-  const meta = getDiplomatieMeta(code);
-  if (!meta) return 'unknown';
-
-  const cacheKey = `level-${code.toUpperCase()}`;
-  const cached = getCached<DiplomatieAdvisoryLevel>(cacheKey, CACHE_TTL_MS);
-  if (cached) return cached;
-
-  const html = await fetchPage(countryUrl(meta.slug, 'conseils-aux-voyageurs-securite'));
-  const level = html ? parseAdvisoryLevel(html) : 'unknown';
-  setCache(cacheKey, level);
-  return level;
+  ensureDiplomatieSync();
+  const upper = code.toUpperCase();
+  const row = db.prepare('SELECT level FROM diplomatie_advisories WHERE country_code = ?').get(upper) as { level: string } | undefined;
+  return (row?.level as DiplomatieAdvisoryLevel) ?? 'unknown';
 }
 
 export async function getAllAdvisoryLevels(): Promise<Record<string, DiplomatieAdvisoryLevel>> {
-  if (levelsCache && Date.now() - levelsCache.ts < LEVELS_CACHE_TTL_MS) {
-    return levelsCache.data;
-  }
-
-  const diskKey = 'all-levels';
-  const diskCached = getCached<Record<string, DiplomatieAdvisoryLevel>>(diskKey, LEVELS_CACHE_TTL_MS);
-  if (diskCached) {
-    levelsCache = { data: diskCached, ts: Date.now() };
-    return diskCached;
-  }
-
-  // No cache yet — warm in background so the first request doesn't block ~30s
-  if (!levelsWarmInProgress) {
-    levelsWarmInProgress = true;
-    warmAllLevels().finally(() => { levelsWarmInProgress = false; });
-  }
-
-  // Return any individually-cached levels we already have
-  const partial: Record<string, DiplomatieAdvisoryLevel> = {};
-  for (const code of listDiplomatieCodes()) {
-    const cached = getCached<DiplomatieAdvisoryLevel>(`level-${code}`, CACHE_TTL_MS);
-    if (cached) partial[code] = cached;
-  }
-  return partial;
-}
-
-async function warmAllLevels(): Promise<void> {
-  const codes = listDiplomatieCodes();
+  ensureDiplomatieSync();
+  const rows = db.prepare('SELECT country_code, level FROM diplomatie_advisories').all() as Array<{ country_code: string; level: string }>;
   const levels: Record<string, DiplomatieAdvisoryLevel> = {};
-
-  const BATCH = 8;
-  for (let i = 0; i < codes.length; i += BATCH) {
-    const batch = codes.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(async (code) => {
-      const level = await getAdvisoryLevel(code);
-      return { code, level };
-    }));
-    for (const { code, level } of results) levels[code] = level;
+  for (const row of rows) {
+    levels[row.country_code] = row.level as DiplomatieAdvisoryLevel;
   }
-
-  setCache('all-levels', levels);
-  levelsCache = { data: levels, ts: Date.now() };
+  return levels;
 }
 
 export async function getCountrySummary(code: string): Promise<DiplomatieSummary | null> {
+  ensureDiplomatieSync();
   const upper = code.toUpperCase();
   const meta = getDiplomatieMeta(upper);
   if (!meta) return null;
 
-  const cacheKey = `summary-${upper}`;
-  const cached = getCached<DiplomatieSummary>(cacheKey, CACHE_TTL_MS);
-  if (cached) return cached;
+  const row = db.prepare('SELECT * FROM diplomatie_advisories WHERE country_code = ?').get(upper) as DiplomatieRow | undefined;
+  if (!row) return null;
 
-  const [securityHtml, entryHtml, healthHtml] = await Promise.all([
-    fetchPage(countryUrl(meta.slug, 'conseils-aux-voyageurs-securite')),
-    fetchPage(countryUrl(meta.slug, 'conseils-aux-voyageurs-entree-sejour')),
-    fetchPage(countryUrl(meta.slug, 'conseils-aux-voyageurs-sante')),
-  ]);
-
-  if (!securityHtml && !entryHtml) return null;
-
-  const level = securityHtml ? parseAdvisoryLevel(securityHtml) : 'unknown';
-  const summary: DiplomatieSummary = {
-    code: upper,
-    name: meta.name,
-    level,
-    levelLabel: LEVEL_LABELS[level],
-    risks: securityHtml ? extractRisksSummary(securityHtml) : '',
-    visa: entryHtml ? extractVisaSummary(entryHtml) : '',
-    otherInfo: securityHtml ? extractOtherInfo(securityHtml, healthHtml) : '',
-    lastUpdated: securityHtml ? extractLastUpdated(securityHtml) : null,
-    sourceUrl: countryUrl(meta.slug, 'conseils-aux-voyageurs-securite'),
-  };
-
-  setCache(cacheKey, summary);
-  return summary;
+  return rowToSummary(row, meta.name);
 }
 
 export async function getCountryDetail(code: string): Promise<DiplomatieDetail | null> {
+  ensureDiplomatieSync();
   const upper = code.toUpperCase();
   const meta = getDiplomatieMeta(upper);
   if (!meta) return null;
 
-  const cacheKey = `detail-${upper}`;
-  const cached = getCached<DiplomatieDetail>(cacheKey, CACHE_TTL_MS);
-  if (cached) return cached;
+  const row = db.prepare('SELECT * FROM diplomatie_advisories WHERE country_code = ?').get(upper) as DiplomatieRow | undefined;
+  if (!row) return null;
 
-  const sections: DiplomatieDetail['sections'] = [];
-  for (const section of SECTIONS) {
-    const html = await fetchPage(countryUrl(meta.slug, section.suffix));
-    if (html) {
-      const body = extractArticleBody(html);
-      if (body.trim()) {
-        sections.push({ id: section.id, title: section.title, html: body });
-      }
-    }
-  }
-
-  if (sections.length === 0) return null;
-
-  const detail: DiplomatieDetail = {
-    code: upper,
-    name: meta.name,
-    sections,
-    sourceUrl: countryUrl(meta.slug, 'conseils-aux-voyageurs-securite'),
-  };
-
-  setCache(cacheKey, detail);
-  return detail;
+  const detail = rowToDetail(row, meta.name);
+  return detail.sections.length > 0 ? detail : null;
 }
