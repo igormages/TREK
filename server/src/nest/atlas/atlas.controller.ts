@@ -191,4 +191,14 @@ export class AtlasController {
     const m = Math.max(1, Math.min(12, parseInt(month || String(new Date().getMonth() + 1), 10) || new Date().getMonth() + 1));
     return this.atlas.meteoLevels(m);
   }
+
+  @Get('meteo/:code/detail')
+  @Header('Cache-Control', 'private, no-cache')
+  async meteoDetail(@Param('code') code: string) {
+    const detail = await this.atlas.meteoDetail(code.toUpperCase());
+    if (!detail) {
+      throw new HttpException({ error: 'Country not found' }, 404);
+    }
+    return detail;
+  }
 }

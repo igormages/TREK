@@ -7,7 +7,7 @@ import L from 'leaflet'
 import type { GeoJsonFeatureCollection } from '../../types'
 import { A2_TO_A3, normalizeRegionName, resolveBucketCountryA2, sortBucketItinerary, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
 import { geodesicArcs } from '../../components/Map/flightGeodesy'
-import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail, type MeteoLevel, METEO_LEVEL_COLORS } from '@trek/shared'
+import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail, type MeteoLevel, type MeteoCountryDetail, METEO_LEVEL_COLORS } from '@trek/shared'
 
 const ADVISORY_COLORS: Record<DiplomatieAdvisoryLevel, string> = {
   red: '#ef4444',
@@ -88,7 +88,7 @@ export function useAtlas() {
   const regionTooltipRef = useRef<HTMLDivElement>(null)
   const loadCountryDetailRef = useRef<(code: string) => void>(() => {})
   const handleMarkCountryRef = useRef<(code: string, name: string) => void>(() => {})
-  const openDiplomatieRef = useRef<(code: string) => void>(() => {})
+  const openCountryRef = useRef<(code: string) => void>(() => {})
   const setConfirmActionRef = useRef<typeof setConfirmAction>(() => {})
   const [confirmAction, setConfirmAction] = useState<{ type: 'mark' | 'unmark' | 'choose' | 'bucket' | 'choose-region' | 'unmark-region'; code: string; name: string; regionCode?: string; countryName?: string } | null>(null)
   const [bucketMonth, setBucketMonth] = useState(0)
@@ -124,6 +124,14 @@ export function useAtlas() {
   const [atlasMapMode, setAtlasMapMode] = useState<'security' | 'weather'>('security')
   const [meteoMonth, setMeteoMonth] = useState(() => new Date().getMonth() + 1)
   const [meteoLevels, setMeteoLevels] = useState<Record<string, MeteoLevel>>({})
+  // A-contresens per-country climate panel (weather mode country click)
+  const [meteoCountry, setMeteoCountry] = useState<string | null>(null)
+  const [meteoDetail, setMeteoDetail] = useState<MeteoCountryDetail | null>(null)
+  const [meteoDetailLoading, setMeteoDetailLoading] = useState(false)
+  // Ref mirror so the Leaflet click handlers (bound once per geo layer render)
+  // always dispatch to the panel matching the currently selected map mode.
+  const atlasMapModeRef = useRef(atlasMapMode)
+  atlasMapModeRef.current = atlasMapMode
 
   const atlas_country_options = useMemo(() => {
     if (!geoData) return []
@@ -425,7 +433,7 @@ export function useAtlas() {
             // far out in the ocean instead of over the area being hovered.
             sticky: true, permanent: false, className: 'atlas-tooltip', direction: 'top', offset: [0, -10], opacity: 1
           })
-          layer.on('click', () => openDiplomatieRef.current(c.code))
+          layer.on('click', () => openCountryRef.current(c.code))
           layer.on('mouseover', (e) => {
             e.target.setStyle({ fillOpacity: 0.6, weight: 2, color: dark ? '#818cf8' : '#4f46e5' })
           })
@@ -444,7 +452,7 @@ export function useAtlas() {
             layer.bindTooltip(`<div style="font-size:12px;font-weight:600">${name}</div>`, {
               sticky: true, className: 'atlas-tooltip', direction: 'top', offset: [0, -10], opacity: 1
             })
-            layer.on('click', () => openDiplomatieRef.current(countryCode))
+            layer.on('click', () => openCountryRef.current(countryCode))
             layer.on('mouseover', (e) => {
               e.target.setStyle({ fillOpacity: 0.3, weight: 1.5, color: dark ? '#555' : '#94a3b8' })
             })
@@ -756,8 +764,8 @@ export function useAtlas() {
       console.error('Error fitting bounds', e)
      }
 
-    // Mirror the map-click behaviour: open diplomacy panel from search
-    openDiplomatieCountry(country_code)
+    // Mirror the map-click behaviour: open the mode-matching country panel from search
+    openCountry(country_code)
     return
   }
 
@@ -880,7 +888,7 @@ export function useAtlas() {
     }
     if (bucketList.length < 2 || !geoData) return
 
-    const getCoords = (item: BucketItem): L.LatLngTuple | null => {
+    const getCoords = (item: BucketItem): [number, number] | null => {
       if (item.lat != null && item.lng != null) return [item.lat, item.lng]
       const a2 = resolveBucketCountryA2(item.country_code)
       if (!a2) return null
@@ -892,7 +900,7 @@ export function useAtlas() {
       } catch { return null }
     }
 
-    const coords = sortBucketItinerary(bucketList).map(getCoords).filter((c): c is L.LatLngTuple => c !== null)
+    const coords = sortBucketItinerary(bucketList).map(getCoords).filter((c): c is [number, number] => c !== null)
     if (coords.length < 2) return
 
     if (!mapInstance.current.getPane('bucketRoutePane')) {
@@ -947,7 +955,29 @@ export function useAtlas() {
       setDiplomatieLoading(false)
     }
   }
-  openDiplomatieRef.current = openDiplomatieCountry
+
+  const openMeteoCountry = async (code: string): Promise<void> => {
+    setMeteoCountry(code)
+    setMeteoDetailLoading(true)
+    setMeteoDetail(null)
+    loadCountryDetail(code)
+    try {
+      const r = await apiClient.get(`/addons/atlas/meteo/${code}/detail`, { timeout: 30000 })
+      setMeteoDetail(r.data)
+    } catch {
+      setMeteoDetail(null)
+    } finally {
+      setMeteoDetailLoading(false)
+    }
+  }
+
+  // Country click dispatch: weather mode opens the A-contresens climate panel,
+  // security mode the France Diplomatie advisory panel.
+  const openCountry = (code: string): void => {
+    if (atlasMapModeRef.current === 'weather') void openMeteoCountry(code)
+    else void openDiplomatieCountry(code)
+  }
+  openCountryRef.current = openCountry
 
   const loadDiplomatieDetail = async (): Promise<void> => {
     if (!diplomatieCountry) return
@@ -977,6 +1007,33 @@ export function useAtlas() {
     setDiplomatieDetail(null)
   }
 
+  const closeMeteo = (): void => {
+    setMeteoCountry(null)
+    setMeteoDetail(null)
+    setMeteoDetailLoading(false)
+    setSelectedCountry(null)
+    setCountryDetail(null)
+  }
+
+  // Switching map mode while a country panel is open: swap to the panel that
+  // matches the new mode instead of leaving a stale one on screen.
+  useEffect(() => {
+    if (atlasMapMode === 'weather' && diplomatieCountry) {
+      const code = diplomatieCountry
+      setDiplomatieCountry(null)
+      setDiplomatieSummary(null)
+      setShowDiplomatieDetail(false)
+      setDiplomatieDetail(null)
+      void openMeteoCountry(code)
+    } else if (atlasMapMode === 'security' && meteoCountry) {
+      const code = meteoCountry
+      setMeteoCountry(null)
+      setMeteoDetail(null)
+      void openDiplomatieCountry(code)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [atlasMapMode])
+
   const stats = data?.stats || { totalTrips: 0, totalPlaces: 0, totalCountries: 0, totalDays: 0 }
   const countries = data?.countries || []
 
@@ -1004,5 +1061,7 @@ export function useAtlas() {
     openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
     // Map overlay mode
     atlasMapMode, setAtlasMapMode, meteoMonth, setMeteoMonth, meteoLevels,
+    // A-contresens climate country panel
+    meteoCountry, meteoDetail, meteoDetailLoading, openMeteoCountry, closeMeteo,
   }
 }

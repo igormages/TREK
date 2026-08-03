@@ -3736,6 +3736,21 @@ function runMigrations(db: Database.Database): void {
       `);
       db.exec('CREATE INDEX IF NOT EXISTS idx_atlas_meteo_month ON atlas_meteo (month);');
     },
+
+    // A-contresens per-country pages — path discovered during the monthly sync,
+    // parsed detail (climate table, plugs, health) cached lazily on first view.
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS atlas_meteo_country (
+          country_code TEXT PRIMARY KEY,
+          page_path TEXT NOT NULL,
+          name TEXT,
+          detail_json TEXT,
+          detail_synced_at DATETIME,
+          synced_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

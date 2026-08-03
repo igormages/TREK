@@ -11,6 +11,7 @@ import { useAtlas } from './atlas/useAtlas'
 import AtlasCountrySearch from './atlas/AtlasCountrySearch'
 import AtlasDiplomatiePanel from './atlas/AtlasDiplomatiePanel'
 import AtlasDiplomatieDetail from './atlas/AtlasDiplomatieDetail'
+import AtlasMeteoPanel from './atlas/AtlasMeteoPanel'
 import AtlasMapLegend from './atlas/AtlasMapLegend'
 import { useToast } from '../components/shared/Toast'
 import { getApiErrorMessage } from '../types'
@@ -90,6 +91,7 @@ export default function AtlasPage(): React.ReactElement {
     diplomatieLoading, showDiplomatieDetail, diplomatieDetailLoading,
     openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
     atlasMapMode, setAtlasMapMode, meteoMonth, setMeteoMonth,
+    meteoCountry, meteoDetail, meteoDetailLoading, closeMeteo,
   } = useAtlas()
   const toast = useToast()
   // Solid surfaces when the user disabled transparency (read at render — the
@@ -181,6 +183,36 @@ export default function AtlasPage(): React.ReactElement {
             dark={dark}
             t={t}
             onClose={closeDiplomatieDetail}
+          />
+        )}
+
+        {/* A-contresens climate panel (weather mode country click) */}
+        {meteoCountry && (
+          <AtlasMeteoPanel
+            code={meteoCountry}
+            countryName={resolveName(meteoCountry)}
+            detail={meteoDetail}
+            loading={meteoDetailLoading}
+            month={meteoMonth}
+            onMonthChange={setMeteoMonth}
+            dark={dark}
+            t={t}
+            onClose={closeMeteo}
+            isVisited={!!countries.find(c => c.code === meteoCountry)}
+            canUnmark={(() => {
+              const c = countries.find(c => c.code === meteoCountry)
+              return !!c && c.placeCount === 0 && c.tripCount === 0
+            })()}
+            onMark={() => {
+              const name = resolveName(meteoCountry)
+              setConfirmAction({ type: 'choose', code: meteoCountry, name })
+            }}
+            onAddToBucket={() => {
+              const name = resolveName(meteoCountry)
+              setConfirmAction({ type: 'bucket', code: meteoCountry, name })
+            }}
+            isInBucketList={bucketList.some(b => b.country_code === meteoCountry)}
+            onUnmark={() => handleUnmarkCountry(meteoCountry)}
           />
         )}
 

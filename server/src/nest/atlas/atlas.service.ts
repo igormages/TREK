@@ -23,6 +23,7 @@ import {
   getMeteoLevelsForMonth,
   getMeteoLevelLabels,
   getMeteoLevelColors,
+  getMeteoCountryDetail,
 } from '../../services/meteoService';
 
 type CreateBucketData = Parameters<typeof createBucketItem>[1];
@@ -108,5 +109,9 @@ export class AtlasService {
       labels: getMeteoLevelLabels(),
       colors: getMeteoLevelColors(),
     };
+  }
+
+  meteoDetail(code: string) {
+    return getMeteoCountryDetail(code);
   }
 }
