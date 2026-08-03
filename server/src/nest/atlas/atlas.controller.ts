@@ -184,4 +184,11 @@ export class AtlasController {
     }
     return detail;
   }
+
+  @Get('meteo/levels')
+  @Header('Cache-Control', 'private, no-cache')
+  async meteoLevels(@Query('month') month: string | undefined) {
+    const m = Math.max(1, Math.min(12, parseInt(month || String(new Date().getMonth() + 1), 10) || new Date().getMonth() + 1));
+    return this.atlas.meteoLevels(m);
+  }
 }

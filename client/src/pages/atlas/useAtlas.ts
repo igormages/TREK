@@ -7,7 +7,7 @@ import L from 'leaflet'
 import type { GeoJsonFeatureCollection } from '../../types'
 import { A2_TO_A3, normalizeRegionName, resolveBucketCountryA2, sortBucketItinerary, type AtlasData, type CountryDetail, type BucketItem } from './atlasModel'
 import { geodesicArcs } from '../../components/Map/flightGeodesy'
-import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail } from '@trek/shared'
+import { continentForCountry, type DiplomatieAdvisoryLevel, type DiplomatieSummary, type DiplomatieDetail, type MeteoLevel, METEO_LEVEL_COLORS } from '@trek/shared'
 
 const ADVISORY_COLORS: Record<DiplomatieAdvisoryLevel, string> = {
   red: '#ef4444',
@@ -80,6 +80,7 @@ export function useAtlas() {
   const [pluginLayers, setPluginLayers] = useState<PluginAtlasLayer[]>([])
   const pluginLayerRef = useRef<L.GeoJSON | null>(null)
   const diplomatieLayerRef = useRef<L.GeoJSON | null>(null)
+  const meteoLayerRef = useRef<L.GeoJSON | null>(null)
   const regionLayerRef = useRef<L.GeoJSON | null>(null)
   const regionGeoCache = useRef<Record<string, GeoJsonFeatureCollection>>({})
   const [showRegions, setShowRegions] = useState(false)
@@ -118,6 +119,11 @@ export function useAtlas() {
   const [diplomatieLoading, setDiplomatieLoading] = useState(false)
   const [showDiplomatieDetail, setShowDiplomatieDetail] = useState(false)
   const [diplomatieDetailLoading, setDiplomatieDetailLoading] = useState(false)
+
+  // Map overlay mode: France Diplomatie security vs A-contresens climate
+  const [atlasMapMode, setAtlasMapMode] = useState<'security' | 'weather'>('security')
+  const [meteoMonth, setMeteoMonth] = useState(() => new Date().getMonth() + 1)
+  const [meteoLevels, setMeteoLevels] = useState<Record<string, MeteoLevel>>({})
 
   const atlas_country_options = useMemo(() => {
     if (!geoData) return []
@@ -215,6 +221,25 @@ export function useAtlas() {
     load()
     return () => { cancelled = true }
   }, [])
+
+  // Load A-contresens climate levels for the selected month
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      apiClient.get(`/addons/atlas/meteo/levels?month=${meteoMonth}&_t=${Date.now()}`)
+        .then(r => {
+          if (cancelled) return
+          const levels = r.data?.levels || {}
+          setMeteoLevels(levels)
+          if (Object.keys(levels).length < 50) {
+            setTimeout(load, 10000)
+          }
+        })
+        .catch(() => {})
+    }
+    load()
+    return () => { cancelled = true }
+  }, [meteoMonth])
 
   // Load admin-1 GeoJSON for countries visible in the current viewport
   const loadRegionsForViewportRef = useRef<() => void>(() => {})
@@ -442,7 +467,7 @@ export function useAtlas() {
       mapInstance.current.removeLayer(diplomatieLayerRef.current)
       diplomatieLayerRef.current = null
     }
-    if (!geoData || Object.keys(advisoryLevels).length === 0) return
+    if (atlasMapMode !== 'security' || !geoData || Object.keys(advisoryLevels).length === 0) return
 
     const a3ToLevel: Record<string, DiplomatieAdvisoryLevel> = {}
     for (const [a2, level] of Object.entries(advisoryLevels)) {
@@ -474,7 +499,45 @@ export function useAtlas() {
         return { fillColor: color, fillOpacity: 0.14, color, weight: 1.2, dashArray: '6 4' }
       },
     } as L.GeoJSONOptions).addTo(mapInstance.current)
-  }, [geoData, advisoryLevels, dark, loading])
+  }, [geoData, advisoryLevels, dark, loading, atlasMapMode])
+
+  // Render A-contresens climate coloring — solid fill by month suitability level
+  useEffect(() => {
+    if (!mapInstance.current) return
+    if (meteoLayerRef.current) {
+      mapInstance.current.removeLayer(meteoLayerRef.current)
+      meteoLayerRef.current = null
+    }
+    if (atlasMapMode !== 'weather' || !geoData || Object.keys(meteoLevels).length === 0) return
+
+    const a3ToLevel: Record<string, MeteoLevel> = {}
+    for (const [a2, level] of Object.entries(meteoLevels)) {
+      const a3 = A2_TO_A3[a2]
+      if (a3) a3ToLevel[a3] = level
+    }
+
+    const featureA3 = (f: any) => f?.properties?.ADM0_A3 || f?.properties?.ISO_A3 || f?.properties?.['ISO3166-1-Alpha-3'] || f?.id
+    const features = ((geoData as any).features || []).filter((f: any) => a3ToLevel[featureA3(f)] !== undefined)
+    if (features.length === 0) return
+
+    if (!mapInstance.current.getPane('meteoPane')) {
+      mapInstance.current.createPane('meteoPane')
+      const pane = mapInstance.current.getPane('meteoPane')!
+      pane.style.zIndex = '399'
+      pane.style.pointerEvents = 'none'
+    }
+
+    meteoLayerRef.current = L.geoJSON({ type: 'FeatureCollection', features } as any, {
+      pane: 'meteoPane',
+      interactive: false,
+      style: (feature) => {
+        const a3 = featureA3(feature)
+        const level = a3ToLevel[a3]
+        const color = level ? METEO_LEVEL_COLORS[level] : 'transparent'
+        return { fillColor: color, fillOpacity: 0.55, color: color, weight: 0.8 }
+      },
+    } as L.GeoJSONOptions).addTo(mapInstance.current)
+  }, [geoData, meteoLevels, dark, loading, atlasMapMode, meteoMonth])
 
   // Render plugin tint layers (atlasLayerProvider hook) — a dashed wash over the
   // countries a plugin flagged, in its own non-interactive pane above the country
@@ -939,5 +1002,7 @@ export function useAtlas() {
     advisoryLevels, diplomatieCountry, diplomatieSummary, diplomatieDetail,
     diplomatieLoading, showDiplomatieDetail, diplomatieDetailLoading,
     openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
+    // Map overlay mode
+    atlasMapMode, setAtlasMapMode, meteoMonth, setMeteoMonth, meteoLevels,
   }
 }

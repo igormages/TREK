@@ -82,6 +82,7 @@ const onListen = () => {
   scheduler.startPlacePhotoCacheCleanup();
   scheduler.startAirTrailSync();
   scheduler.startDiplomatieSync();
+  scheduler.startMeteoSync();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {

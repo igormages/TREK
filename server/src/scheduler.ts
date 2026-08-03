@@ -439,6 +439,37 @@ function startDiplomatieSync(): void {
   logInfo('Diplomatie: monthly sync scheduled (1st of month, 04:00)');
 }
 
+// A-contresens climate data: monthly refresh + initial sync when DB is empty.
+let meteoSyncTask: ScheduledTask | null = null;
+
+function startMeteoSync(): void {
+  if (meteoSyncTask) { meteoSyncTask.stop(); meteoSyncTask = null; }
+
+  try {
+    const { isMeteoDataEmpty, ensureMeteoSync } = require('./services/meteoService');
+    if (isMeteoDataEmpty()) {
+      logInfo('Meteo: no data in DB — starting initial sync');
+      ensureMeteoSync();
+    }
+  } catch (err: unknown) {
+    logError(`Meteo startup check failed: ${err instanceof Error ? err.message : err}`);
+  }
+
+  const tz = process.env.TZ || 'UTC';
+  meteoSyncTask = cron.schedule('0 5 1 * *', async () => {
+    try {
+      const { syncAllMeteoData } = require('./services/meteoService');
+      const result = await syncAllMeteoData();
+      if (result) {
+        logInfo(`Meteo monthly sync: ${result.synced} rows synced`);
+      }
+    } catch (err: unknown) {
+      logError(`Meteo monthly sync failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+  logInfo('Meteo: monthly sync scheduled (1st of month, 05:00)');
+}
+
 function stop(): void {
   if (currentTask) { currentTask.stop(); currentTask = null; }
   if (demoTask) { demoTask.stop(); demoTask = null; }
@@ -449,6 +480,7 @@ function stop(): void {
   if (placePhotoCacheTask) { placePhotoCacheTask.stop(); placePhotoCacheTask = null; }
   if (airtrailSyncTask) { airtrailSyncTask.stop(); airtrailSyncTask = null; }
   if (diplomatieSyncTask) { diplomatieSyncTask.stop(); diplomatieSyncTask = null; }
+  if (meteoSyncTask) { meteoSyncTask.stop(); meteoSyncTask = null; }
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, startDiplomatieSync, loadSettings, saveSettings, VALID_INTERVALS };
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, startDiplomatieSync, startMeteoSync, loadSettings, saveSettings, VALID_INTERVALS };

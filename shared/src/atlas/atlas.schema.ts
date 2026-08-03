@@ -314,3 +314,33 @@ export const diplomatieLevelsResponseSchema = z.object({
   levels: z.record(z.string(), diplomatieAdvisoryLevelSchema),
 });
 export type DiplomatieLevelsResponse = z.infer<typeof diplomatieLevelsResponseSchema>;
+
+/** Climate suitability level from A-contresens (1 = défavorable … 5 = très favorable). */
+export const meteoLevelSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4),
+  z.literal(5),
+]);
+export type MeteoLevel = z.infer<typeof meteoLevelSchema>;
+
+/**
+ * Colors from planificateur.a-contresens.net CSS (.bg-climate-note1–5).
+ * note1=#f66, note2=#f96, note3=#ff9, note4=#9c9, note5=#6c6
+ */
+export const METEO_LEVEL_COLORS: Record<MeteoLevel, string> = {
+  1: '#ff6666',
+  2: '#ff9966',
+  3: '#ffff99',
+  4: '#99cc99',
+  5: '#66cc66',
+};
+
+export const meteoLevelsResponseSchema = z.object({
+  month: z.number().int().min(1).max(12),
+  levels: z.record(z.string(), meteoLevelSchema),
+  labels: z.record(meteoLevelSchema, z.string()),
+  colors: z.record(meteoLevelSchema, z.string()),
+});
+export type MeteoLevelsResponse = z.infer<typeof meteoLevelsResponseSchema>;

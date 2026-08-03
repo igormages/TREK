@@ -11,7 +11,7 @@ import { useAtlas } from './atlas/useAtlas'
 import AtlasCountrySearch from './atlas/AtlasCountrySearch'
 import AtlasDiplomatiePanel from './atlas/AtlasDiplomatiePanel'
 import AtlasDiplomatieDetail from './atlas/AtlasDiplomatieDetail'
-import AtlasDiplomatieLegend from './atlas/AtlasDiplomatieLegend'
+import AtlasMapLegend from './atlas/AtlasMapLegend'
 import { useToast } from '../components/shared/Toast'
 import { getApiErrorMessage } from '../types'
 
@@ -89,6 +89,7 @@ export default function AtlasPage(): React.ReactElement {
     diplomatieCountry, diplomatieSummary, diplomatieDetail,
     diplomatieLoading, showDiplomatieDetail, diplomatieDetailLoading,
     openDiplomatieCountry, loadDiplomatieDetail, closeDiplomatie, closeDiplomatieDetail,
+    atlasMapMode, setAtlasMapMode, meteoMonth, setMeteoMonth,
   } = useAtlas()
   const toast = useToast()
   // Solid surfaces when the user disabled transparency (read at render — the
@@ -113,7 +114,14 @@ export default function AtlasPage(): React.ReactElement {
         {/* Map */}
         <div ref={mapRef} style={{ position: 'absolute', inset: 0, zIndex: 1, background: dark ? '#1a1a2e' : '#f0f0f0' }} />
 
-        <AtlasDiplomatieLegend dark={dark} t={t} />
+        <AtlasMapLegend
+          dark={dark}
+          t={t}
+          mode={atlasMapMode}
+          onModeChange={setAtlasMapMode}
+          meteoMonth={meteoMonth}
+          onMeteoMonthChange={setMeteoMonth}
+        />
 
         {/* Region tooltip (custom, always on top, ref-controlled to avoid re-renders) */}
         <div ref={regionTooltipRef} style={{

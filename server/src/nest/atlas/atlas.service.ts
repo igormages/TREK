@@ -19,6 +19,11 @@ import {
   getCountrySummary,
   getCountryDetail,
 } from '../../services/diplomatieService';
+import {
+  getMeteoLevelsForMonth,
+  getMeteoLevelLabels,
+  getMeteoLevelColors,
+} from '../../services/meteoService';
 
 type CreateBucketData = Parameters<typeof createBucketItem>[1];
 type UpdateBucketData = Parameters<typeof updateBucketItem>[2];
@@ -93,5 +98,15 @@ export class AtlasService {
 
   diplomatieDetail(code: string) {
     return getCountryDetail(code);
+  }
+
+  async meteoLevels(month: number) {
+    const levels = await getMeteoLevelsForMonth(month);
+    return {
+      month,
+      levels,
+      labels: getMeteoLevelLabels(),
+      colors: getMeteoLevelColors(),
+    };
   }
 }

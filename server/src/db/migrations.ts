@@ -3721,6 +3721,21 @@ function runMigrations(db: Database.Database): void {
       `);
       db.exec('CREATE INDEX IF NOT EXISTS idx_diplomatie_synced_at ON diplomatie_advisories (synced_at);');
     },
+
+    // A-contresens climate data — scraped monthly from quand-partir.html monthData.
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS atlas_meteo (
+          country_code TEXT NOT NULL,
+          month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+          level INTEGER NOT NULL CHECK (level >= 1 AND level <= 5),
+          level_label TEXT NOT NULL,
+          synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (country_code, month)
+        );
+      `);
+      db.exec('CREATE INDEX IF NOT EXISTS idx_atlas_meteo_month ON atlas_meteo (month);');
+    },
   ];
 
   if (currentVersion < migrations.length) {
