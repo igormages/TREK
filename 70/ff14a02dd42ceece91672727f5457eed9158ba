@@ -1,0 +1,54 @@
+client/src/pages/atlas/useAtlas.ts
+  s_6e61a6398dcab7::t_41025fff42fa31 10
+  s_6e61a6398dcab7::t_19a3dc5b8fbdf6 225-243
+  s_6e61a6398dcab7::t_bbe951538196b1 502-540
+  s_6e61a6398dcab7::t_58ef4bc5834268 83
+  s_6e61a6398dcab7::t_c208e4681a818f 123-127
+  s_6e61a6398dcab7::t_083b1475a883db 470
+  s_6e61a6398dcab7::t_70bdf1ef5a4e69 1005-1006
+server/src/index.ts
+  s_6e61a6398dcab7::t_ab98e735b4fb29 85
+server/src/scheduler.ts
+  s_6e61a6398dcab7::t_a00d669f2e64d2 442-472
+  s_6e61a6398dcab7::t_0d96c8850e1b0a 483,486
+server/tests/unit/services/meteoService.test.ts
+  s_6e61a6398dcab7::t_1853d48a6dfa9a 1-24,26-76
+  s_6e61a6398dcab7::t_9736d3c7094c13 25
+client/src/pages/atlas/AtlasMapLegend.tsx
+  s_6e61a6398dcab7::t_cdf0ac0555bed2 1-138
+shared/src/atlas/atlas.schema.ts
+  s_6e61a6398dcab7::t_7e23e0badc7530 317-346
+server/src/nest/atlas/atlas.controller.ts
+  s_6e61a6398dcab7::t_3e69b97b5deb24 187-193
+server/src/nest/atlas/atlas.service.ts
+  s_6e61a6398dcab7::t_4333af7237cb5a 22-26
+  s_6e61a6398dcab7::t_f0bf48311c953a 102-111
+shared/src/i18n/fr/atlas.ts
+  s_6e61a6398dcab7::t_cb28b6f83ae898 73-93
+server/src/services/meteoService.ts
+  s_6e61a6398dcab7::t_c16059297cf402 1-183
+server/src/db/migrations.ts
+  s_6e61a6398dcab7::t_552b83e1bbe189 3724-3738
+shared/src/i18n/en/atlas.ts
+  s_6e61a6398dcab7::t_29c6637003b983 73-93
+client/src/pages/AtlasPage.tsx
+  s_6e61a6398dcab7::t_971e5e782dfc6c 117-124
+  s_6e61a6398dcab7::t_2e3f0671ac9cf8 92
+  s_6e61a6398dcab7::t_f3daf930af1edd 14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.20",
+  "base_commit_sha": "70ff14a02dd42ceece91672727f5457eed9158ba",
+  "prompts": {},
+  "sessions": {
+    "s_6e61a6398dcab7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b574907b-c8f8-4b8a-be80-c95515f02106",
+        "model": "composer-2.5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
