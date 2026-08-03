@@ -344,3 +344,42 @@ export const meteoLevelsResponseSchema = z.object({
   colors: z.record(meteoLevelSchema, z.string()),
 });
 export type MeteoLevelsResponse = z.infer<typeof meteoLevelsResponseSchema>;
+
+/** Per-month climate figures scraped from an A-contresens country page. */
+export const meteoMonthDetailSchema = z.object({
+  month: z.number().int().min(1).max(12),
+  level: meteoLevelSchema.nullable(),
+  levelLabel: z.string().nullable(),
+  tempC: z.number().nullable(),
+  rainMm: z.number().nullable(),
+});
+export type MeteoMonthDetail = z.infer<typeof meteoMonthDetailSchema>;
+
+/** "Prise électrique et adaptateur" card from an A-contresens country page. */
+export const meteoElectricitySchema = z.object({
+  headline: z.string().nullable(),
+  needsAdapter: z.boolean().nullable(),
+  description: z.string().nullable(),
+  plugTypes: z.array(z.string()),
+  voltageText: z.string().nullable(),
+});
+export type MeteoElectricity = z.infer<typeof meteoElectricitySchema>;
+
+/** "Santé" card (vaccines + accordion sections) from an A-contresens country page. */
+export const meteoHealthSchema = z.object({
+  headline: z.string().nullable(),
+  vaccines: z.array(z.string()),
+  sections: z.array(z.object({ title: z.string(), text: z.string() })),
+});
+export type MeteoHealth = z.infer<typeof meteoHealthSchema>;
+
+export const meteoCountryDetailSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  sourceUrl: z.string(),
+  annualSummary: z.string().nullable(),
+  months: z.array(meteoMonthDetailSchema),
+  electricity: meteoElectricitySchema.nullable(),
+  health: meteoHealthSchema.nullable(),
+});
+export type MeteoCountryDetail = z.infer<typeof meteoCountryDetailSchema>;

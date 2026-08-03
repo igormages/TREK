@@ -1535,6 +1535,16 @@ describe('AtlasPage', () => {
       server.use(
         http.get('/api/addons/atlas/stats', () => HttpResponse.json(statsWithIT)),
         http.delete('/api/addons/atlas/country/:code/mark', () => HttpResponse.json({ success: true })),
+        // Country clicks open the diplomatie panel first — the unmark flow now
+        // starts from the panel's Remove button, which only renders once the
+        // summary has loaded.
+        http.get('/api/addons/atlas/diplomatie/:code/summary', ({ params }) => HttpResponse.json({
+          code: params.code, name: params.code === 'IT' ? 'Italy' : 'France',
+          level: 'green', levelLabel: 'Normal vigilance',
+          risks: '', visa: '', otherInfo: '', lastUpdated: null,
+          sourceUrl: 'https://example.com', vigilanceMapUrl: null,
+        })),
+        http.get('/api/addons/atlas/country/:code', () => HttpResponse.json({ places: [], trips: [] })),
       );
 
       // Provide GeoJSON with both FR and IT features
@@ -1553,25 +1563,30 @@ describe('AtlasPage', () => {
       render(<AtlasPage />);
 
       // Wait for data to load and geoJSON layer to be built.
-      // The layer mock immediately invokes click callbacks: IT (placeCount=0, tripCount=0)
-      // → handleUnmarkCountry('IT') → setConfirmAction({ type: 'unmark', code: 'IT', name: 'Italy' })
+      // The layer mock immediately invokes click callbacks: IT (visited, placeCount=0,
+      // tripCount=0) → openDiplomatieCountry('IT') → panel renders its Remove button
+      // (canUnmark is true for a manually-marked country with no trips/places).
       await waitFor(() => {
-        // The unmark popup shows t('atlas.unmark') = 'Remove' button
         expect(
           screen.queryAllByRole('button').some((b) => b.textContent?.trim() === 'Remove'),
         ).toBe(true);
       }, { timeout: 5000 });
 
-      // Find and click the "Remove" button (atlas.unmark) → executeConfirmAction runs
+      // Click the panel's "Remove" button → handleUnmarkCountry → unmark popup opens
       const removeBtn = screen.queryAllByRole('button').find((b) => b.textContent?.trim() === 'Remove');
-      if (removeBtn) {
-        fireEvent.click(removeBtn);
-      }
+      fireEvent.click(removeBtn!);
 
-      // After executeConfirmAction: popup closes
       await waitFor(() => {
-        expect(screen.queryAllByRole('button').some((b) => b.textContent?.trim() === 'Remove')).toBe(false);
-      }, { timeout: 3000 }).catch(() => {});
+        expect(screen.getByText('Remove this country from your visited list?')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Confirm in the popup → executeConfirmAction runs and the popup closes
+      const confirmBtn = screen.queryAllByRole('button').filter((b) => b.textContent?.trim() === 'Remove').pop();
+      fireEvent.click(confirmBtn!);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Remove this country from your visited list?')).not.toBeInTheDocument();
+      }, { timeout: 3000 });
 
       // Page is still rendered
       expect(screen.getAllByText(/countries/i).length).toBeGreaterThan(0);

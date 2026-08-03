@@ -80,7 +80,10 @@ interface DiplomatieRow {
 
 let syncInProgress = false;
 
-const UPSERT = db.prepare(`
+// Lazily prepared: preparing at module load would fail under tests that import
+// the app before the schema/migrations have created the table.
+let upsertStmt: ReturnType<typeof db.prepare> | null = null;
+const UPSERT = () => (upsertStmt ??= db.prepare(`
   INSERT INTO diplomatie_advisories (
     country_code, level, level_label, risks, visa, other_info,
     last_updated, sections, source_url, synced_at
@@ -95,7 +98,7 @@ const UPSERT = db.prepare(`
     sections = excluded.sections,
     source_url = excluded.source_url,
     synced_at = CURRENT_TIMESTAMP
-`);
+`));
 
 export function getDiplomatieMeta(code: string): DiplomatieCountryMeta | null {
   return SLUGS[code.toUpperCase()] ?? null;
@@ -361,7 +364,7 @@ async function scrapeCountry(code: string): Promise<boolean> {
     html: detailHtmls[i],
   })));
 
-  UPSERT.run(
+  UPSERT().run(
     upper,
     level,
     levelLabelFor(level),
