@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': '确认号',
   'day.editAccommodation': '编辑住宿',
   'day.reservations': '预订',
+  'day.workOverlap': '工作时间重叠',
+  'day.workOverlapHint': '家中{homeRange} = 当地时间{localRange}',
+  'day.workOverlapNone': '与当地清醒时间（08-23）无重叠',
 };
 export default day;

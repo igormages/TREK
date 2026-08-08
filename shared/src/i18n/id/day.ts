@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Konfirmasi',
   'day.editAccommodation': 'Edit akomodasi',
   'day.reservations': 'Reservasi',
+  'day.workOverlap': 'Tumpang tindih jam kerja',
+  'day.workOverlapHint': '{homeRange} di rumah = {localRange} waktu setempat',
+  'day.workOverlapNone': 'Tidak ada tumpang tindih dengan jam bangun setempat (08-23)',
 };
 export default day;

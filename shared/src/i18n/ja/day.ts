@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': '確認',
   'day.editAccommodation': '宿泊先を編集',
   'day.reservations': '予約',
+  'day.workOverlap': '勤務時間の重なり',
+  'day.workOverlapHint': '自宅の{homeRange} = 現地時間{localRange}',
+  'day.workOverlapNone': '現地の活動時間（08-23）との重なりはありません',
 };
 export default day;

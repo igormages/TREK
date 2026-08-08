@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Xác nhận',
   'day.editAccommodation': 'Chỉnh sửa chỗ ở',
   'day.reservations': 'Đặt chỗ',
+  'day.workOverlap': 'Trùng giờ làm việc',
+  'day.workOverlapHint': '{homeRange} ở nhà = {localRange} giờ địa phương',
+  'day.workOverlapNone': 'Không trùng với giờ thức địa phương (08-23)',
 };
 export default day;
