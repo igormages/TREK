@@ -112,8 +112,8 @@ interface SettlementData {
 // One row in the unified Costs ledger — either an expense or a settle-up payment,
 // carrying the date used to group it by day.
 type LedgerEntry =
-  | { kind: 'expense'; date: string; e: BudgetItem }
-  | { kind: 'payment'; date: string; s: Settlement }
+  | { kind: 'expense'; date: string; time: string; e: BudgetItem }
+  | { kind: 'payment'; date: string; time: string; s: Settlement }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 const FIELD_H = 40 // shared height for the amount / currency / day row in the modal
@@ -252,16 +252,37 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   }, [settlement, filter, search, catFilter, dayFilter, countryFilter, me])
 
   const dayGroups = useMemo(() => {
+    // An expense with no date of its own still belongs to a day: the server
+    // derives one from the reservation it came from. Without this, 43 of the
+    // trip's 95 expenses piled up in a single "no date" block.
     const entries: LedgerEntry[] = [
-      ...filtered.map(e => ({ kind: 'expense' as const, date: e.expense_date || '', e })),
-      ...filteredSettlements.map(s => ({ kind: 'payment' as const, date: (s.created_at || '').slice(0, 10), s })),
+      ...filtered.map(e => ({
+        kind: 'expense' as const,
+        date: e.expense_date || placeOf.get(e.id)?.date || '',
+        // Expenses carry no time, so they keep a stable order within their day.
+        time: '',
+        e,
+      })),
+      ...filteredSettlements.map(s => ({
+        kind: 'payment' as const,
+        date: (s.created_at || '').slice(0, 10),
+        time: (s.created_at || '').slice(11, 19),
+        s,
+      })),
     ]
     const labelOf = (date: string) => {
       if (!date) return t('costs.noDate')
       try { return new Date(date + 'T00:00:00Z').toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) } catch { return date }
     }
-    // Newest day first; within a day, expenses before payments (insertion order).
-    const sorted = entries.slice().sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    // Chronological: a trip reads forwards, so the first day of the journey comes
+    // first. Undated entries sink to the end rather than opening the ledger.
+    // Within a day, ordered by time when there is one (payments), then by
+    // insertion order — sort() is stable, so same-key entries keep their order.
+    const sorted = entries.slice().sort((a, b) => {
+      if (!a.date !== !b.date) return a.date ? -1 : 1
+      const byDate = (a.date || '').localeCompare(b.date || '')
+      return byDate !== 0 ? byDate : (a.time || '').localeCompare(b.time || '')
+    })
     const groups: { day: string; entries: LedgerEntry[] }[] = []
     for (const en of sorted) {
       const day = labelOf(en.date)
@@ -270,7 +291,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
       g.entries.push(en)
     }
     return groups
-  }, [filtered, filteredSettlements, locale, t])
+  }, [filtered, filteredSettlements, placeOf, locale, t])
 
   // ── filter dropdown options (category + single day) ──────────────────────
   const categoryOptions = useMemo(() => [
