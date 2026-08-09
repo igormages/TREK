@@ -1,0 +1,131 @@
+shared/src/i18n/cs/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 105-112
+shared/src/index.ts
+  s_8a7b0e6d96c318::t_09b83fb4e5bbac 57-59
+server/src/nest/reservations/accommodations.service.ts
+  s_8a7b0e6d96c318::t_5e2923bd75f0a2 36-50
+  s_8a7b0e6d96c318::t_aacefebe9f110b 3-4
+client/src/api/client.ts
+  s_8a7b0e6d96c318::t_1ab4e385f5c267 25
+  s_8a7b0e6d96c318::t_c167a84299a475 933-934
+  s_8a7b0e6d96c318::t_1de4307a7b28c6 496-497
+shared/src/i18n/ru/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 107-114
+server/src/nest/admin/admin.controller.ts
+  s_8a7b0e6d96c318::t_bc9595d1357afa 108-122
+server/src/nest/reservations/accommodations.controller.ts
+  s_8a7b0e6d96c318::t_ad49bf83c494a6 65-75
+  s_8a7b0e6d96c318::t_79a3f86b26af77 11
+shared/src/i18n/ja/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 140-147
+shared/src/i18n/ca/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 110-117
+server/src/services/hotelPriceService.ts
+  s_8a7b0e6d96c318::t_d8b3486b93f4fe 124
+  s_8a7b0e6d96c318::t_a2a1c5d1885722 310-314,317-331
+  s_8a7b0e6d96c318::t_124751dc385ca3 1-123,125-277,279-309,315-316,332-406,415-427
+  s_8a7b0e6d96c318::t_191b936566bdf9 407-414
+  s_8a7b0e6d96c318::t_3c4c2de78dc921 278
+shared/src/i18n/es/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 107-114
+client/src/pages/admin/useAdmin.ts
+  s_8a7b0e6d96c318::t_87999968bd385f 10
+  s_8a7b0e6d96c318::t_c9e06297a71c81 388
+  s_8a7b0e6d96c318::t_1e30ede4f89c00 59-62
+  s_8a7b0e6d96c318::t_71e333f7575784 126-128
+shared/src/i18n/pl/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 98-105
+shared/src/i18n/uk/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 107-114
+server/src/nest/admin/admin.service.ts
+  s_8a7b0e6d96c318::t_56d99a37c95d14 28-30
+shared/src/i18n/gr/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 152-159
+server/scripts/migrate-encryption.ts
+  s_8a7b0e6d96c318::t_34c906c319bcd7 240-241
+shared/src/i18n/br/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 105-112
+server/src/services/adminService.ts
+  s_8a7b0e6d96c318::t_855f82d936abe6 12
+  s_8a7b0e6d96c318::t_2d0fb0f77c9f50 359-402
+shared/src/i18n/ko/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 145-152
+shared/src/i18n/sv/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 149-156
+client/src/components/Map/MapViewGL.tsx
+  s_8a7b0e6d96c318::t_452bf515881ef2 26-28
+  s_8a7b0e6d96c318::t_0e1d3a6f2df805 157
+  s_8a7b0e6d96c318::t_7de435f2496a93 245,247-253
+  s_8a7b0e6d96c318::t_d2dade5c8c4ab5 110
+  s_8a7b0e6d96c318::t_5ef55ebf8c54b1 809
+  s_8a7b0e6d96c318::t_6ce2d1dcdce97b 897
+  s_8a7b0e6d96c318::t_a17fa0781147ff 106-107
+client/src/pages/admin/AdminSettingsTab.tsx
+  s_8a7b0e6d96c318::t_e6c07072c4c3c0 23
+  s_8a7b0e6d96c318::t_de21eab151d8a2 431-487
+shared/src/i18n/zh-TW/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 144-151
+shared/src/i18n/en/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 147-154
+shared/src/i18n/vi/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 148-155
+shared/src/i18n/id/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 148-155
+shared/src/i18n/nl/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 107-114
+shared/src/i18n/fr/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 106-113
+shared/src/i18n/ar/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 127-134
+client/src/pages/admin/adminModel.ts
+  s_8a7b0e6d96c318::t_e2f32eaf255ff4 33-45
+server/src/db/migrations.ts
+  s_8a7b0e6d96c318::t_058751ca1e69c5 3793-3805
+shared/src/i18n/de/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 107-114
+client/src/pages/tripPlanner/useTripPlanner.ts
+  s_8a7b0e6d96c318::t_9fe626fe0b8e10 106-126
+  s_8a7b0e6d96c318::t_85f972f0b4b8a1 13
+  s_8a7b0e6d96c318::t_0b9125cf925a8d 942
+client/src/pages/TripPlannerPage.tsx
+  s_8a7b0e6d96c318::t_0ef0b8c5215b1a 320
+  s_8a7b0e6d96c318::t_ab63ee2c1020ae 187
+shared/src/i18n/tr/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 149-156
+server/tests/unit/services/hotelPriceService.test.ts
+  s_8a7b0e6d96c318::t_3561f85fb5edf5 57,151
+  s_8a7b0e6d96c318::t_1d833424fe3e20 1-56,58-150,152-233
+client/src/components/Map/MapView.tsx
+  s_8a7b0e6d96c318::t_b8c7aa8d4403a9 65
+  s_8a7b0e6d96c318::t_fcdc19accdd5ba 442-443,450,452
+  s_8a7b0e6d96c318::t_b0d23205fa3956 679,685
+  s_8a7b0e6d96c318::t_0f768970a7e4d6 496,498-501
+  s_8a7b0e6d96c318::t_723a8238d63995 52-55
+  s_8a7b0e6d96c318::t_ab7923873f0134 21-22
+client/src/components/Map/hotelPriceLabels.ts
+  s_8a7b0e6d96c318::t_d9584e3b529fe1 1-27
+shared/src/i18n/hu/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 106-113
+shared/src/i18n/zh/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 105-112
+shared/src/accommodation/hotelPrice.schema.ts
+  s_8a7b0e6d96c318::t_e3ba4f4a23b0f2 1-61
+shared/src/i18n/it/admin.ts
+  s_8a7b0e6d96c318::t_41421cfa59ddee 106-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "8a34db57b5d54b61c7af9db9be42ea66b2f5869c",
+  "prompts": {},
+  "sessions": {
+    "s_8a7b0e6d96c318": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e617c4e7-5615-43c0-9fa3-58e22688ff0b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
