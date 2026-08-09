@@ -49,6 +49,10 @@ export * from './admin/admin.schema';
 // accommodation search is priced (an under-two sleeps in a cot, not a bed).
 export * from './traveler/traveler';
 
+// Hotel / hostel / rental, derived from a place's category and name — TREK
+// stores no column for it, and it only drives how a marker is drawn.
+export * from './accommodation/accommodationKind';
+
 // Sanitisation helpers — used by the client today, scoped here so the server
 // has them ready if rich-text input ever ships.
 export * from './sanitize/sanitize';
