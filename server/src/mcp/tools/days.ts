@@ -230,18 +230,21 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
       inputSchema: {
         tripId: z.number().int().positive(),
         dayId: z.number().int().positive(),
-        text: z.string().min(1).max(500),
-        time: z.string().max(250).optional().describe('Time label (e.g. "09:00" or "Morning")'),
+        text: z.string().min(1).max(500).describe('Short title shown on the day card'),
+        // `time` is the note BODY (markdown), not a clock time — the column name
+        // predates that use. Same 4000 cap as the REST route and the dialog.
+        time: z.string().max(4000).optional().describe('Note body, markdown supported'),
         icon: z.string().optional().describe('Emoji icon for the note'),
+        cost: z.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
       },
       annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
     },
-    async ({ tripId, dayId, text, time, icon }) => {
+    async ({ tripId, dayId, text, time, icon, cost }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
       if (!dayNoteExists(dayId, tripId)) return { content: [{ type: 'text' as const, text: 'Day not found.' }], isError: true };
-      const note = createDayNote(dayId, tripId, text, time, icon);
+      const note = createDayNote(dayId, tripId, text, time, icon, undefined, cost);
       safeBroadcast(tripId, 'dayNote:created', { dayId, note });
       return ok({ note });
     }
@@ -255,19 +258,20 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         tripId: z.number().int().positive(),
         dayId: z.number().int().positive(),
         noteId: z.number().int().positive(),
-        text: z.string().min(1).max(500).optional(),
-        time: z.string().max(250).nullable().optional().describe('Time label (e.g. "09:00" or "Morning"), or null to clear'),
+        text: z.string().min(1).max(500).optional().describe('Short title shown on the day card'),
+        time: z.string().max(4000).nullable().optional().describe('Note body, markdown supported; null to clear'),
         icon: z.string().optional().describe('Emoji icon for the note'),
+        cost: z.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
       },
       annotations: TOOL_ANNOTATIONS_WRITE,
     },
-    async ({ tripId, dayId, noteId, text, time, icon }) => {
+    async ({ tripId, dayId, noteId, text, time, icon, cost }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('day_edit', tripId, userId)) return permissionDenied();
       const existing = getDayNote(noteId, dayId, tripId);
       if (!existing) return { content: [{ type: 'text' as const, text: 'Note not found.' }], isError: true };
-      const note = updateDayNote(noteId, existing, { text, time: time !== undefined ? time : undefined, icon });
+      const note = updateDayNote(noteId, existing, { text, time: time !== undefined ? time : undefined, icon, cost });
       safeBroadcast(tripId, 'dayNote:updated', { dayId, note });
       return ok({ note });
     }

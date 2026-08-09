@@ -40,7 +40,7 @@ vi.mock('../../../src/services/atlasService', () => ({
 import { getTripCountryBreakdown } from '../../../src/services/budgetCountryService';
 
 function setup(opts: {
-  days: { id: number; date: string | null }[];
+  days: { id: number; date: string | null; title?: string | null }[];
   assignments: { id: number; day_id: number }[];
   reservations?: { id: number; day_id: number | null; place_id: number | null }[];
   items: { id: number; expense_date: string | null; reservation_id: number | null }[];
@@ -260,5 +260,82 @@ describe('getTripCountryBreakdown', () => {
     // The country carries forward (the leg continues); the city does not, because
     // a travel day is not necessarily still in Tokyo.
     expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: null, date: '2027-01-02' }]);
+  });
+  it('takes the country from the day title flag, over a carried-forward one', () => {
+    setup({
+      days: [
+        { id: 1, date: '2027-03-22', title: '🇱🇦 Vientiane — télétravail (vol Tokyo demain)' },
+        // Nothing assigned yet: without the flag this day inherited Laos, so a
+        // "Japan — local transport" expense was labelled Laos (#report).
+        { id: 2, date: '2027-03-23', title: '🇯🇵 Tokyo — arrivée à Narita le soir' },
+      ],
+      assignments: [{ id: 10, day_id: 1 }],
+      items: [{ id: 100, expense_date: '2027-03-23', reservation_id: null }],
+      countries: { 10: 'LA' },
+    });
+
+    expect(getTripCountryBreakdown(1).items).toEqual([
+      { id: 100, country_code: 'JP', city: 'Tokyo', date: '2027-03-23' },
+    ]);
+  });
+
+  it('reads the city out of the day title, with no geocoding needed', () => {
+    setup({
+      days: [{ id: 1, date: '2027-03-24', title: '🇯🇵 Tokyo — Senso-ji & sakura de la Sumida 🌸' }],
+      assignments: [],
+      items: [{ id: 100, expense_date: '2027-03-24', reservation_id: null }],
+      countries: {},
+    });
+
+    // The trailing emoji and the dash section are stripped: just "Tokyo".
+    expect(getTripCountryBreakdown(1).items).toEqual([
+      { id: 100, country_code: 'JP', city: 'Tokyo', date: '2027-03-24' },
+    ]);
+  });
+
+  it('never pairs a title country with the previous leg\'s geocoded city', () => {
+    setup({
+      days: [{ id: 1, date: '2027-03-23', title: '🇯🇵 Tokyo — arrivée' }],
+      // A place still in Laos is assigned to the travel day.
+      assignments: [{ id: 10, day_id: 1 }],
+      items: [{ id: 100, expense_date: '2027-03-23', reservation_id: null }],
+      countries: { 10: 'LA' },
+      cities: { 10: 'Vientiane' },
+    });
+
+    const out = getTripCountryBreakdown(1).items[0];
+    expect(out.country_code).toBe('JP');
+    expect(out.city).not.toBe('Vientiane');
+  });
+
+  it('falls back to the geolocated places when the title carries no flag', () => {
+    setup({
+      days: [{ id: 1, date: '2027-03-24', title: 'Journée libre' }],
+      assignments: [{ id: 10, day_id: 1 }],
+      items: [{ id: 100, expense_date: '2027-03-24', reservation_id: null }],
+      countries: { 10: 'JP' },
+      cities: { 10: 'Kyoto' },
+    });
+
+    expect(getTripCountryBreakdown(1).items).toEqual([
+      { id: 100, country_code: 'JP', city: 'Kyoto', date: '2027-03-24' },
+    ]);
+  });
+
+  it('ignores a title with no flag and no places, carrying the country forward', () => {
+    setup({
+      days: [
+        { id: 1, date: '2027-03-24', title: '🇯🇵 Tokyo — arrivée' },
+        { id: 2, date: '2027-03-25', title: 'Repos' },
+      ],
+      assignments: [],
+      items: [{ id: 100, expense_date: '2027-03-25', reservation_id: null }],
+      countries: {},
+    });
+
+    const out = getTripCountryBreakdown(1).items[0];
+    expect(out.country_code).toBe('JP');
+    // The carried day is not necessarily still in Tokyo, so no city is claimed.
+    expect(out.city).toBeNull();
   });
 });
