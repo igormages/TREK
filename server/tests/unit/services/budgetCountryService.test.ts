@@ -80,8 +80,8 @@ describe('getTripCountryBreakdown', () => {
 
     const out = getTripCountryBreakdown(1);
     expect(out.items).toEqual([
-      { id: 100, country_code: 'TR', city: null },
-      { id: 200, country_code: 'EG', city: null },
+      { id: 100, country_code: 'TR', city: null, date: '2026-12-27' },
+      { id: 200, country_code: 'EG', city: null, date: '2026-12-28' },
     ]);
     expect(out.countries).toEqual([
       { code: 'EG', days: 1 },
@@ -98,7 +98,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 10: 'TR' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: null, date: '2026-12-27' }]);
   });
 
   it("uses the reservation's own place when its day is outside the itinerary", () => {
@@ -110,7 +110,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 77: 'JP' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: null, date: null }]);
   });
 
   it('carries the country forward over days with no geolocated place', () => {
@@ -131,7 +131,7 @@ describe('getTripCountryBreakdown', () => {
 
     const out = getTripCountryBreakdown(1);
     // The gap day inherits Japan, and day 4 (after the last place) inherits Korea.
-    expect(out.items).toEqual([{ id: 100, country_code: 'JP', city: null }]);
+    expect(out.items).toEqual([{ id: 100, country_code: 'JP', city: null, date: '2027-01-02' }]);
     expect(out.countries).toEqual([
       { code: 'JP', days: 2 },
       { code: 'KR', days: 2 },
@@ -149,7 +149,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 20: 'IN' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'IN', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'IN', city: null, date: '2027-02-01' }]);
     expect(getTripCountryBreakdown(1).countries).toEqual([{ code: 'IN', days: 2 }]);
   });
 
@@ -165,7 +165,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 10: 'TH', 11: 'MY', 12: 'MY' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'MY', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'MY', city: null, date: '2027-03-01' }]);
   });
 
   it('leaves an expense unattributed when nothing can place it', () => {
@@ -177,7 +177,7 @@ describe('getTripCountryBreakdown', () => {
     });
 
     const out = getTripCountryBreakdown(1);
-    expect(out.items).toEqual([{ id: 100, country_code: null, city: null }]);
+    expect(out.items).toEqual([{ id: 100, country_code: null, city: null, date: null }]);
     expect(out.countries).toEqual([]);
   });
 
@@ -189,7 +189,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 10: 'ID' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'ID', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'ID', city: null, date: '2027-05-01' }]);
   });
   it("labels an expense with the city of its day's first geolocated place", () => {
     setup({
@@ -203,7 +203,7 @@ describe('getTripCountryBreakdown', () => {
       cities: { 10: 'Istanbul', 11: 'Üsküdar' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: 'Istanbul' }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: 'Istanbul', date: '2026-12-27' }]);
   });
 
   it('falls back to a later place when the first one has no cached city', () => {
@@ -218,7 +218,7 @@ describe('getTripCountryBreakdown', () => {
       cities: { 11: 'Istanbul' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: 'Istanbul' }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: 'Istanbul', date: '2026-12-27' }]);
   });
 
   it('keeps the country and leaves the city null when nothing is geocoded yet', () => {
@@ -229,7 +229,7 @@ describe('getTripCountryBreakdown', () => {
       countries: { 10: 'TR' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'TR', city: null, date: '2026-12-27' }]);
   });
 
   it("uses the reservation's own place city when the booking has no day", () => {
@@ -242,7 +242,7 @@ describe('getTripCountryBreakdown', () => {
       cities: { 77: 'Osaka' },
     });
 
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: 'Osaka' }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: 'Osaka', date: null }]);
   });
 
   it('carries no city onto a gap day the country was carried onto', () => {
@@ -259,6 +259,6 @@ describe('getTripCountryBreakdown', () => {
 
     // The country carries forward (the leg continues); the city does not, because
     // a travel day is not necessarily still in Tokyo.
-    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: null }]);
+    expect(getTripCountryBreakdown(1).items).toEqual([{ id: 100, country_code: 'JP', city: null, date: '2027-01-02' }]);
   });
 });
