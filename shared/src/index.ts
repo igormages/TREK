@@ -54,6 +54,9 @@ export * from './traveler/traveler';
 // stores no column for it, and it only drives how a marker is drawn.
 export * from './accommodation/accommodationKind';
 
+// Market prices for those same markers, quoted per stay by Hotellook.
+export * from './accommodation/hotelPrice.schema';
+
 // Sanitisation helpers — used by the client today, scoped here so the server
 // has them ready if rich-text input ever ships.
 export * from './sanitize/sanitize';

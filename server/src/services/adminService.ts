@@ -9,6 +9,7 @@ import { maybe_encrypt_api_key, decrypt_api_key } from './apiKeyCrypto';
 import { resolveAuthToggles } from './authService';
 import { avatarUrl } from './avatarUrl';
 import { prepareLlmAddonConfigForWrite, maskLlmAddonConfig } from './llmConfig';
+import { clearHotelPriceCache } from './hotelPriceService';
 import { getPhotoProviderConfig } from './memories/helpersService';
 import { send as sendNotification } from './notificationService';
 import { validatePassword } from './passwordPolicy';
@@ -353,6 +354,50 @@ export function getAuditLog(query: { limit?: string; offset?: string }) {
   });
 
   return { entries, total, limit, offset };
+}
+
+// ── Travelpayouts / Hotellook ──────────────────────────────────────────────
+
+/**
+ * The affiliate credentials behind the price pills on the accommodation map.
+ *
+ * The token is never returned — only whether one is stored, the same contract
+ * the OIDC client secret uses. A GET that echoed it back would put a live
+ * affiliate key into every admin page load, and into any log that records one.
+ */
+export function getTravelpayoutsSettings() {
+  const get = (key: string) =>
+    (db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined)?.value || '';
+  return {
+    token_set: !!decrypt_api_key(get('travelpayouts_token')) || !!process.env.TRAVELPAYOUTS_TOKEN,
+    /** Env var wins, and an admin cannot tell from the UI why their token is ignored without this. */
+    token_from_env: !!process.env.TRAVELPAYOUTS_TOKEN,
+    marker: get('travelpayouts_marker'),
+  };
+}
+
+export function updateTravelpayoutsSettings(data: { token?: string; marker?: string }): {
+  error?: string;
+  status?: number;
+  success?: boolean;
+} {
+  if (data.marker !== undefined && data.marker !== '' && !/^\d{1,12}$/.test(data.marker.trim())) {
+    return { error: 'Marker must be the numeric affiliate id.', status: 400 };
+  }
+  const set = (key: string, val: string) =>
+    db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)').run(key, val || '');
+
+  if (data.marker !== undefined) set('travelpayouts_marker', data.marker.trim());
+  // Absent means "leave it alone" — the admin form sends the field only when
+  // the operator actually typed a new one, so saving the marker alone must not
+  // wipe the token.
+  if (data.token !== undefined) {
+    set('travelpayouts_token', maybe_encrypt_api_key(data.token) ?? '');
+    // Quotes fetched with the old key — including its remembered misses — say
+    // nothing about what the new one can see.
+    clearHotelPriceCache();
+  }
+  return { success: true };
 }
 
 // ── OIDC Settings ──────────────────────────────────────────────────────────

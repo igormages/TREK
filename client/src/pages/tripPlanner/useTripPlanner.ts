@@ -10,7 +10,7 @@ import { resolvePluginIcon } from '../../components/shared/PluginIcon'
 import { useTranslation, translateApiError } from '../../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, healthApi, airtrailApi, mapsApi, placesApi } from '../../api/client'
 import { parsedItemToDraft, isTransportItem, type BookingReviewDraft } from '../../components/Planner/parsedItemToDraft'
-import type { BookingImportPreviewItem } from '@trek/shared'
+import type { BookingImportPreviewItem, HotelPrice } from '@trek/shared'
 import { accommodationRepo } from '../../repo/accommodationRepo'
 import { offlineDb, getImportFiles, deleteImportFiles } from '../../db/offlineDb'
 import { isEffectivelyOffline } from '../../sync/networkMode'
@@ -102,6 +102,27 @@ export function useTripPlanner() {
       tripActions.loadReservations(tripId)
     }
   }, [tripId])
+
+  // Market rates for the lodging markers, indexed by the place they price.
+  // Quoted for the nights each stay actually books, so the set is refetched when
+  // a stay is added, removed or moved — not when an unrelated place changes.
+  const [hotelPrices, setHotelPrices] = useState<Record<number, HotelPrice>>({})
+  const staySignature = useMemo(
+    () => tripAccommodations.map(a => `${a.place_id}:${a.start_day_id}:${a.end_day_id}`).sort().join('|'),
+    [tripAccommodations],
+  )
+  useEffect(() => {
+    if (!tripId) return
+    let cancelled = false
+    accommodationsApi.prices(tripId, language)
+      .then(res => {
+        if (cancelled) return
+        setHotelPrices(Object.fromEntries(res.prices.map(p => [p.place_id, p])))
+      })
+      // Silent: no token, no network, no quote — the map just keeps plain circles.
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [tripId, language, staySignature])
 
   useEffect(() => {
     addonsApi.enabled().then(data => {
@@ -918,7 +939,7 @@ export function useTripPlanner() {
     trip, days, places, assignments, packingItems, todoItems, categories, reservations, budgetItems, files,
     selectedDayId, isLoading, tripActions, can, canUploadFiles,
     pushUndo, undo, canUndo, lastActionLabel, handleUndo,
-    enabledAddons, collabFeatures, tripAccommodations, setTripAccommodations,
+    enabledAddons, collabFeatures, tripAccommodations, setTripAccommodations, hotelPrices,
     allowedFileTypes, tripMembers, setTripMembers, refreshMembers, loadAccommodations,
     TRANSPORT_TYPES, TRIP_TABS, activeTab, setActiveTab, handleTabChange,
     leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight,

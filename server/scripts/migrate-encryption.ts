@@ -237,8 +237,8 @@ async function main() {
   }
 
   db.transaction(() => {
-    // --- app_settings: oidc_client_secret, smtp_pass, admin_webhook_url, admin_ntfy_token ---
-    for (const key of ['oidc_client_secret', 'smtp_pass', 'admin_webhook_url', 'admin_ntfy_token']) {
+    // --- app_settings: oidc_client_secret, smtp_pass, admin_webhook_url, admin_ntfy_token, travelpayouts_token ---
+    for (const key of ['oidc_client_secret', 'smtp_pass', 'admin_webhook_url', 'admin_ntfy_token', 'travelpayouts_token']) {
       const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
       if (!row?.value) continue;
       const newVal = migrateApiKeyValue(row.value, `app_settings.${key}`);

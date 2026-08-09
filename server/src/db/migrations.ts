@@ -3790,6 +3790,19 @@ function runMigrations(db: Database.Database): void {
         db.exec('CREATE INDEX IF NOT EXISTS idx_budget_items_plan ON budget_items(trip_id, plan_key)');
       }
     },
+    () => {
+      // Hotellook quotes, keyed by everything that changes the answer:
+      // place, the nights booked, the occupant count and the currency.
+      // An empty payload is a remembered miss — a property Hotellook does not
+      // list must not be looked up again every time the map is opened.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS hotel_price_cache (
+          cache_key    TEXT    PRIMARY KEY,
+          payload_json TEXT    NOT NULL,
+          fetched_at   INTEGER NOT NULL
+        )
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

@@ -105,6 +105,21 @@ export class AdminController {
     return { success: true };
   }
 
+  // ── Travelpayouts / Hotellook ──
+  @Get('travelpayouts')
+  getTravelpayouts() { return this.admin.getTravelpayoutsSettings(); }
+
+  @Put('travelpayouts')
+  updateTravelpayouts(@CurrentUser() user: User, @Body() body: { token?: string; marker?: string }, @Req() req: Request) {
+    const result = this.admin.updateTravelpayoutsSettings(body);
+    if (result.error) {
+      throw new HttpException({ error: result.error }, result.status || 400);
+    }
+    // The token itself never reaches the audit log — only that one was set.
+    writeAudit({ userId: user.id, action: 'admin.travelpayouts_update', ip: getClientIp(req), details: { token_set: !!body.token, marker: body.marker ?? null } });
+    return { success: true };
+  }
+
   @Post('save-demo-baseline')
   @HttpCode(200)
   saveDemoBaseline(@CurrentUser() user: User, @Req() req: Request) {

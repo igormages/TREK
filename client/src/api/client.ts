@@ -22,7 +22,7 @@ import {
   type DayCreateRequest, type DayUpdateRequest, type DayReorderRequest,
   type PlaceCreateRequest, type PlaceUpdateRequest,
   type ReservationCreateRequest, type ReservationUpdateRequest,
-  type AccommodationCreateRequest, type AccommodationUpdateRequest,
+  type AccommodationCreateRequest, type AccommodationUpdateRequest, type TripHotelPricesResponse,
   type BudgetCreateItemRequest, type BudgetUpdateItemRequest,
   type PackingCreateItemRequest, type PackingUpdateItemRequest, type PackingSetSharingRequest,
   type TodoCreateItemRequest, type TodoUpdateItemRequest,
@@ -493,6 +493,8 @@ export const adminApi = {
   saveDemoBaseline: () => apiClient.post('/admin/save-demo-baseline').then(r => r.data),
   getOidc: () => apiClient.get('/admin/oidc').then(r => r.data),
   updateOidc: (data: Record<string, unknown>) => apiClient.put('/admin/oidc', data).then(r => r.data),
+  getTravelpayouts: () => apiClient.get('/admin/travelpayouts').then(r => r.data),
+  updateTravelpayouts: (data: Record<string, unknown>) => apiClient.put('/admin/travelpayouts', data).then(r => r.data),
   addons: () => apiClient.get('/admin/addons').then(r => r.data),
   updateAddon: (id: number | string, data: Record<string, unknown>) => apiClient.put(`/admin/addons/${id}`, data).then(r => r.data),
   plugins: () => apiClient.get('/admin/plugins').then(r => r.data),
@@ -928,6 +930,8 @@ export const accommodationsApi = {
   create: (tripId: number | string, data: AccommodationCreateRequest) => apiClient.post(`/trips/${tripId}/accommodations`, data).then(r => r.data),
   update: (tripId: number | string, id: number, data: AccommodationUpdateRequest) => apiClient.put(`/trips/${tripId}/accommodations/${id}`, data).then(r => r.data),
   delete: (tripId: number | string, id: number) => apiClient.delete(`/trips/${tripId}/accommodations/${id}`).then(r => r.data),
+  prices: (tripId: number | string, lang: string): Promise<TripHotelPricesResponse> =>
+    apiClient.get(`/trips/${tripId}/accommodations/prices`, { params: { lang } }).then(r => r.data),
 }
 
 export const dayNotesApi = {
