@@ -913,15 +913,6 @@ export function useTripPlanner() {
 
   const fontStyle = { fontFamily: "var(--font-system)" }
 
-  // Splash screen — show for initial load + a brief moment for photos to start loading
-  const [splashDone, setSplashDone] = useState(false)
-  useEffect(() => {
-    if (!isLoading && trip) {
-      const timer = setTimeout(() => setSplashDone(true), 1500)
-      return () => clearTimeout(timer)
-    }
-  }, [isLoading, trip])
-
   return {
     tripId, navigate, toast, t, language, settings, placesPhotosEnabled,
     trip, days, places, assignments, packingItems, todoItems, categories, reservations, budgetItems, files,
@@ -956,6 +947,6 @@ export function useTripPlanner() {
     handleAssignToDay, handleRemoveAssignment, handleReorder, handleReorderDays, handleAddDay, handleUpdateDayTitle,
     handleSaveReservation, handleSaveTransport, handleDeleteReservation,
     selectedPlace, dayOrderMap, dayPlaces,
-    mapTileUrl, fontStyle, splashDone,
+    mapTileUrl, fontStyle,
   }
 }
