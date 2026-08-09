@@ -5,6 +5,7 @@ import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
 import * as svc from '../../services/budgetService';
 import { getRates } from '../../services/exchangeRateService';
+import { getTripCountryBreakdown } from '../../services/budgetCountryService';
 
 type Trip = NonNullable<ReturnType<typeof svc.verifyTripAccess>>;
 
@@ -33,6 +34,10 @@ export class BudgetService {
 
   perPersonSummary(tripId: string) {
     return svc.getPerPersonSummary(tripId);
+  }
+
+  countries(tripId: string) {
+    return getTripCountryBreakdown(tripId);
   }
 
   async settlement(tripId: string, base: string | undefined, tripCurrency: string) {

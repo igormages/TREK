@@ -1,7 +1,7 @@
 import { Plus, Calculator, Download } from 'lucide-react'
 import CustomSelect from '../shared/CustomSelect'
 import { currenciesWith, SYMBOLS } from './BudgetPanel.constants'
-import { useBudgetPanel } from './useBudgetPanel'
+import { useBudgetPanel, NO_COUNTRY } from './useBudgetPanel'
 import type { TripMember } from './BudgetPanelMemberChips'
 import BudgetCategoryTable from './BudgetPanelCategoryTable'
 import BudgetSummary from './BudgetPanelSummary'
@@ -27,9 +27,19 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
     dragItem, setDragItem, dragOverItem, setDragOverItem, dragItemCat, setDragItemCat,
     setCurrency,
     grouped, categoryNames, categoryColor, grandTotal, pieSegments,
+    countryStats, countryFilter, setCountryFilter,
     handleAddItem, handleUpdateField, handleDeleteItem, handleDeleteCategory, handleRenameCategory, handleAddCategory, handleExportCsv,
     th, td,
   } = useBudgetPanel(tripId, tripMembers)
+
+  // "🇯🇵 Japan · 21 d" — the day count sits next to the country everywhere it is named.
+  const countryOptions = [
+    { value: '', label: t('budget.allCountries') },
+    ...countryStats.map(c => ({
+      value: c.code ?? NO_COUNTRY,
+      label: `${c.flag ? c.flag + ' ' : ''}${c.label}${c.days > 0 ? ` · ${c.days} ${t('budget.daysShort')}` : ''}`,
+    })),
+  ]
 
   // ── Empty State ──────────────────────────────────────────────────────────
   if (!budgetItems || budgetItems.length === 0) {
@@ -69,6 +79,16 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
             {t('budget.title')}
           </h2>
           <div className="flex flex-wrap max-md:!w-full max-md:!mt-2" style={{ alignItems: 'center', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+            {countryStats.length > 1 && (
+              <div className="max-md:!w-full" style={{ width: 200 }}>
+                <CustomSelect
+                  value={countryFilter}
+                  onChange={v => setCountryFilter(String(v))}
+                  options={countryOptions}
+                  searchable
+                />
+              </div>
+            )}
             <div className="max-md:!w-full" style={{ width: 150 }}>
               <CustomSelect
                 value={currency}
@@ -120,6 +140,11 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
 
       <div style={{ display: 'flex', gap: 20, padding: '24px 28px 40px', alignItems: 'flex-start', flexWrap: 'wrap' }} className="max-md:!px-4">
         <div style={{ flex: 1, minWidth: 0 }}>
+          {countryFilter && categoryNames.length === 0 && (
+            <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'calc(13px * var(--fs-scale-body, 1))', background: 'var(--bg-tertiary)', borderRadius: 14 }}>
+              {t('budget.noExpenseForCountry')}
+            </div>
+          )}
           {categoryNames.map(cat => (
             <BudgetCategoryTable key={cat} cat={cat} grouped={grouped} categoryColor={categoryColor}
               canEdit={canEdit} editingCat={editingCat} setEditingCat={setEditingCat}
@@ -139,6 +164,7 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
         <BudgetSummary theme={theme} currency={currency} locale={locale} grandTotal={grandTotal}
           hasMultipleMembers={hasMultipleMembers} budgetItems={budgetItems} settlement={settlement}
           settlementOpen={settlementOpen} setSettlementOpen={setSettlementOpen} pieSegments={pieSegments}
+          countryStats={countryStats} countryFilter={countryFilter} setCountryFilter={setCountryFilter}
           isDark={isDark} tripId={tripId} t={t} fmt={fmt} />
       </div>
     </div>

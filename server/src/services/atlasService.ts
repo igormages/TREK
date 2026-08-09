@@ -838,7 +838,7 @@ function getPlacesForTrips(tripIds: number[]): Place[] {
 
 // ── Country resolution (batch DB cache + sync fallback + background geocoding) ──
 
-function resolvePlaceCountries(places: Place[]): Map<number, string> {
+export function resolvePlaceCountries(places: Place[]): Map<number, string> {
   const out = new Map<number, string>();
   const geoPlaces = places.filter((p) => p.lat && p.lng);
   const placeIds = geoPlaces.map((p) => p.id);

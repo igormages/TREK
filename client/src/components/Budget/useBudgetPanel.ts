@@ -7,7 +7,8 @@ import { useTranslation } from '../../i18n'
 import { budgetApi } from '../../api/client'
 import type { BudgetItem } from '../../types'
 import { currencyDecimals } from '../../utils/formatters'
-import { widgetTheme, fmtNum, calcPP, calcPD, calcPPD, hasCustomMemberSplit } from './BudgetPanel.helpers'
+import { widgetTheme, fmtNum, calcPP, calcPD, calcPPD, hasCustomMemberSplit, countryFlag, countryName } from './BudgetPanel.helpers'
+import type { BudgetCountriesResponse } from '@trek/shared'
 import { PIE_COLORS } from './BudgetPanel.constants'
 import type { TripMember } from './BudgetPanelMemberChips'
 
@@ -57,6 +58,25 @@ export interface PieSegment {
   color: string
 }
 
+/**
+ * One country of the trip, as shown by the "by country" chart and the filter.
+ * `days` is the number of trip days spent there (server-derived from the
+ * itinerary), so `perDay` is the real daily burn rate rather than an average
+ * over the whole trip. `code` is null for expenses the itinerary can't place.
+ */
+export interface CountryStat {
+  code: string | null
+  label: string
+  flag: string
+  days: number
+  value: number
+  perDay: number | null
+  color: string
+}
+
+/** Sentinel filter value for expenses with no resolvable country. */
+export const NO_COUNTRY = '__none__'
+
 export interface AddItemData {
   name: string
   total_price: number
@@ -97,21 +117,50 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
     budgetApi.settlement(tripId).then(setSettlement).catch(() => {})
   }, [tripId, budgetItems, hasMultipleMembers])
 
+  // Country attribution comes from the itinerary, so it changes when expenses are
+  // added/removed (new ids to place) — but not when only an amount is edited.
+  const [countryData, setCountryData] = useState<BudgetCountriesResponse | null>(null)
+  const [countryFilter, setCountryFilter] = useState<string>('')
+  const itemIdKey = (budgetItems || []).map(i => i.id).join(',')
+  useEffect(() => {
+    if (!tripId) return
+    let cancelled = false
+    budgetApi.countries(tripId)
+      .then(d => { if (!cancelled) setCountryData(d) })
+      .catch(() => { if (!cancelled) setCountryData(null) })
+    return () => { cancelled = true }
+  }, [tripId, itemIdKey])
+
   const setCurrency = (cur: string) => {
     if (tripId) updateTrip(tripId, { currency: cur })
   }
 
   useEffect(() => { if (tripId) loadBudgetItems(tripId) }, [tripId])
 
+  const itemCountry = useMemo(() => {
+    const map = new Map<number, string | null>()
+    for (const row of (countryData?.items || [])) map.set(row.id, row.country_code)
+    return map
+  }, [countryData])
+
+  // The filter narrows the table, the category chart and the total; the country
+  // charts below stay global so they keep working as the way back out of a filter.
+  const visibleItems = useMemo(() => {
+    const all = budgetItems || []
+    if (!countryFilter) return all
+    if (countryFilter === NO_COUNTRY) return all.filter(i => !itemCountry.get(i.id))
+    return all.filter(i => itemCountry.get(i.id) === countryFilter)
+  }, [budgetItems, countryFilter, itemCountry])
+
   const grouped = useMemo(() => {
     const map = new Map<string, BudgetItem[]>()
-    for (const item of (budgetItems || [])) {
+    for (const item of visibleItems) {
       const cat = item.category || 'Other'
       if (!map.has(cat)) map.set(cat, [])
       map.get(cat)!.push(item)
     }
     return map
-  }, [budgetItems])
+  }, [visibleItems])
 
   const categoryNames = Array.from(grouped.keys())
 
@@ -124,7 +173,45 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
     }
     return map.get(cat)!
   }, [])
-  const grandTotal = (budgetItems || []).reduce((s, i) => s + (i.total_price || 0), 0)
+  const grandTotal = visibleItems.reduce((s, i) => s + (i.total_price || 0), 0)
+
+  // Stable colour per country, assigned on first sight like the category colours.
+  const countryColorRef = useRef(new Map<string, string>())
+  const countryColor = useCallback((code: string) => {
+    const map = countryColorRef.current
+    if (!map.has(code)) map.set(code, PIE_COLORS[map.size % PIE_COLORS.length])
+    return map.get(code)!
+  }, [])
+
+  const countryStats = useMemo<CountryStat[]>(() => {
+    const totals = new Map<string | null, number>()
+    for (const item of (budgetItems || [])) {
+      const code = itemCountry.get(item.id) ?? null
+      totals.set(code, (totals.get(code) || 0) + (item.total_price || 0))
+    }
+    const daysByCode = new Map((countryData?.countries || []).map(c => [c.code, c.days]))
+
+    const stats: CountryStat[] = []
+    for (const [code, value] of totals) {
+      if (value <= 0) continue
+      const days = code ? (daysByCode.get(code) || 0) : 0
+      stats.push({
+        code,
+        label: code ? countryName(code, locale, code) : t('budget.noCountry'),
+        flag: countryFlag(code),
+        days,
+        value,
+        perDay: days > 0 ? value / days : null,
+        // Concrete hex (not a CSS var): the donut derives a gradient from it via hexLighten.
+        color: code ? countryColor(code) : '#9ca3af',
+      })
+    }
+    // With no country resolved at all (endpoint down, itinerary not geolocated)
+    // a lone "no country" slice says nothing — drop the whole breakdown instead.
+    if (!stats.some(s => s.code)) return []
+    // Unattributed last; the rest by spend so the chart legend reads top-down.
+    return stats.sort((a, b) => (a.code === null ? 1 : b.code === null ? -1 : b.value - a.value))
+  }, [budgetItems, itemCountry, countryData, locale, countryColor, t])
 
   const pieSegments = useMemo<PieSegment[]>(() =>
     categoryNames.map((cat, i) => ({
@@ -162,7 +249,7 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
     const fmtPrice = (v: number | null | undefined) => v != null ? v.toFixed(d) : ''
 
     const fmtDate = (iso: string) => { if (!iso) return ''; const d = new Date(iso + 'T00:00:00Z'); return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) }
-    const header = ['Category', 'Name', 'Date', 'Total (' + currency + ')', 'Persons', 'Days', 'Per Person', 'Per Day', 'Per Person/Day', 'Note']
+    const header = ['Category', 'Country', 'Name', 'Date', 'Total (' + currency + ')', 'Persons', 'Days', 'Per Person', 'Per Day', 'Per Person/Day', 'Note']
     const rows = [header.join(sep)]
 
     for (const cat of categoryNames) {
@@ -172,8 +259,10 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
         const pp = customSplit ? null : calcPP(item.total_price, item.persons)
         const pd = calcPD(item.total_price, item.days)
         const ppd = customSplit ? null : calcPPD(item.total_price, item.persons, item.days)
+        const code = itemCountry.get(item.id) ?? null
         rows.push([
-          esc(item.category), esc(item.name), esc(fmtDate(item.expense_date || '')),
+          esc(item.category), esc(code ? countryName(code, locale, code) : ''),
+          esc(item.name), esc(fmtDate(item.expense_date || '')),
           fmtPrice(item.total_price), item.persons ?? '', item.days ?? '',
           fmtPrice(pp), fmtPrice(pd), fmtPrice(ppd),
           esc(item.note || ''),
@@ -207,6 +296,7 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
     dragItem, setDragItem, dragOverItem, setDragOverItem, dragItemCat, setDragItemCat,
     setCurrency,
     grouped, categoryNames, categoryColor, grandTotal, pieSegments,
+    countryStats, countryFilter, setCountryFilter, itemCountry,
     handleAddItem, handleUpdateField, handleDeleteItem, handleDeleteCategory, handleRenameCategory, handleAddCategory, handleExportCsv,
     th, td,
   }
