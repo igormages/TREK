@@ -8,6 +8,11 @@ export const budgetHandlers = [
     });
   }),
 
+  // Country attribution is derived server-side; tests that care override this.
+  http.get('/api/trips/:id/budget/countries', () => {
+    return HttpResponse.json({ items: [], countries: [] });
+  }),
+
   http.post('/api/trips/:id/budget', async ({ params, request }) => {
     const body = await request.json() as Record<string, unknown>;
     const item = buildBudgetItem({ trip_id: Number(params.id), ...body });

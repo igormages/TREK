@@ -70,6 +70,26 @@ export const calcPPD = (p: NumOrNull, n: NumOrNull, d: NumOrNull) => (n! > 0 && 
 export const hasCustomMemberSplit = (item: { members?: { amount?: number | null }[] }) =>
   (item.members || []).some(m => m.amount != null)
 
+// ── Country display (ISO 3166-1 alpha-2) ─────────────────────────────────────
+
+// Regional indicator symbols: 'FR' -> 🇫🇷. Anything that isn't two ASCII letters
+// (including the `null` bucket for unattributed expenses) renders no flag.
+export function countryFlag(code: string | null | undefined): string {
+  if (!code || !/^[A-Za-z]{2}$/.test(code)) return ''
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1f1e6 + c.charCodeAt(0) - 65))
+}
+
+// Localized country name, falling back to the raw code where Intl.DisplayNames is
+// unavailable or the code is unknown to it.
+export function countryName(code: string | null | undefined, locale: string, fallback: string): string {
+  if (!code) return fallback
+  try {
+    return new Intl.DisplayNames([locale], { type: 'region' }).of(code.toUpperCase()) || code
+  } catch {
+    return code
+  }
+}
+
 export function splitColorFor(userId: number, order: number) {
   return SPLIT_COLORS[order % SPLIT_COLORS.length]
 }

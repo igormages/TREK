@@ -122,6 +122,31 @@ export const budgetItemSchema = z.object({
 });
 export type BudgetItem = z.infer<typeof budgetItemSchema>;
 
+/**
+ * Per-country read model for the expense table (GET .../budget/countries).
+ * `budget_items` stores no country: the server derives it from the itinerary
+ * (expense date -> day -> that day's places -> country), so `country_code` is
+ * null for an expense whose date falls outside any geolocated day. `countries`
+ * counts the trip DAYS spent per country — the denominator behind "cost per day".
+ */
+export const budgetItemCountrySchema = z.object({
+  id: z.number(),
+  country_code: z.string().nullable(),
+});
+export type BudgetItemCountry = z.infer<typeof budgetItemCountrySchema>;
+
+export const budgetCountryDaysSchema = z.object({
+  code: z.string(),
+  days: z.number(),
+});
+export type BudgetCountryDays = z.infer<typeof budgetCountryDaysSchema>;
+
+export const budgetCountriesResponseSchema = z.object({
+  items: z.array(budgetItemCountrySchema),
+  countries: z.array(budgetCountryDaysSchema),
+});
+export type BudgetCountriesResponse = z.infer<typeof budgetCountriesResponseSchema>;
+
 const payerInputSchema = z.object({
   user_id: z.number(),
   amount: z.number(),

@@ -1,12 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react'
-import { Wallet, Info, ChevronDown, ChevronRight, TrendingUp, TrendingDown, PieChart as PieChartIcon } from 'lucide-react'
+import { Wallet, Info, ChevronDown, ChevronRight, TrendingUp, TrendingDown, PieChart as PieChartIcon, Globe, CalendarDays } from 'lucide-react'
 import type { BudgetItem } from '../../types'
 import { currencyDecimals } from '../../utils/formatters'
 import { SYMBOLS } from './BudgetPanel.constants'
 import { hexLighten, widgetTheme } from './BudgetPanel.helpers'
 import RingAvatar from './BudgetPanelRingAvatar'
 import PerPersonInline from './BudgetPanelPerPersonInline'
-import type { SettlementData, PieSegment } from './useBudgetPanel'
+import type { SettlementData, PieSegment, CountryStat } from './useBudgetPanel'
+import { NO_COUNTRY } from './useBudgetPanel'
 
 interface BudgetSummaryProps {
   theme: ReturnType<typeof widgetTheme>
@@ -19,6 +20,9 @@ interface BudgetSummaryProps {
   settlementOpen: boolean
   setSettlementOpen: Dispatch<SetStateAction<boolean>>
   pieSegments: PieSegment[]
+  countryStats: CountryStat[]
+  countryFilter: string
+  setCountryFilter: Dispatch<SetStateAction<string>>
   isDark: boolean
   tripId: number
   t: (key: string) => string
@@ -26,7 +30,8 @@ interface BudgetSummaryProps {
 }
 
 export default function BudgetSummary({ theme, currency, locale, grandTotal, hasMultipleMembers, budgetItems,
-  settlement, settlementOpen, setSettlementOpen, pieSegments, isDark, tripId, t, fmt }: BudgetSummaryProps) {
+  settlement, settlementOpen, setSettlementOpen, pieSegments, countryStats, countryFilter, setCountryFilter,
+  isDark, tripId, t, fmt }: BudgetSummaryProps) {
   return (
         <div className="w-full md:w-[320px]" style={{ flexShrink: 0, position: 'sticky', top: 16, alignSelf: 'flex-start' }}>
 
@@ -270,6 +275,190 @@ export default function BudgetSummary({ theme, currency, locale, grandTotal, has
                       </div>
                     )
                   })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ── By country ──────────────────────────────────────────────────
+              Always shows every country, even while a filter is active: this is
+              how you switch between countries, so collapsing it to the filtered
+              one would strand the user. Clicking a row toggles the filter. */}
+          {countryStats.length > 0 && (() => {
+            const decimals = currencyDecimals(currency)
+            const total = countryStats.reduce((s, x) => s + x.value, 0)
+            const totalFmt = Number(total).toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+            const decimalSep = (0.1).toLocaleString(locale).replace(/\d/g, '')
+            const [totalInt, totalDec] = decimals > 0 ? totalFmt.split(decimalSep) : [totalFmt, '']
+            const R = 80
+            const CIRC = 2 * Math.PI * R
+            let dashOffset = 0
+            return (
+              <div style={{
+                background: theme.bg,
+                borderRadius: 20, padding: 20, color: theme.text, marginBottom: 16,
+                border: `1px solid ${theme.border}`,
+                boxShadow: theme.shadow,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 11,
+                    background: theme.iconBg,
+                    border: `1px solid ${theme.iconBorder}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: theme.iconColor, flexShrink: 0,
+                  }}>
+                    <Globe size={18} strokeWidth={2} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'calc(11px * var(--fs-scale-caption, 1))', color: theme.faint, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600 }}>{t('budget.byCountry')}</div>
+                  </div>
+                </div>
+
+                <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', margin: '4px 0 16px' }}>
+                  <svg width={200} height={200} viewBox="0 0 200 200" style={{ transform: 'rotate(-90deg)', filter: theme.donutShadow }}>
+                    <defs>
+                      {countryStats.map((seg, i) => (
+                        <linearGradient key={`cgrad-${i}`} id={`ctry-grad-${i}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stopColor={seg.color} />
+                          <stop offset="100%" stopColor={hexLighten(seg.color, 0.2)} />
+                        </linearGradient>
+                      ))}
+                    </defs>
+                    <circle cx={100} cy={100} r={R} fill="none" stroke={theme.track} strokeWidth={22} />
+                    {countryStats.map((seg, i) => {
+                      const segLen = total > 0 ? (seg.value / total) * CIRC : 0
+                      const circle = (
+                        <circle key={i}
+                          cx={100} cy={100} r={R}
+                          fill="none" strokeLinecap="round" strokeWidth={22}
+                          stroke={`url(#ctry-grad-${i})`}
+                          strokeDasharray={`${segLen} ${CIRC}`}
+                          strokeDashoffset={-dashOffset}
+                        />
+                      )
+                      dashOffset += segLen
+                      return circle
+                    })}
+                  </svg>
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, pointerEvents: 'none' }}>
+                    <div style={{ fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', color: theme.faint, textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>{t('budget.total')}</div>
+                    <div style={{ fontSize: 'calc(22px * var(--fs-scale-title, 1))', fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                      <span>{totalInt}</span>
+                      {totalDec && <span style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 500, color: theme.sub }}>{decimalSep}{totalDec}</span>}
+                    </div>
+                    <div style={{ fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', color: theme.faint, fontWeight: 500, marginTop: 2 }}>{currency}</div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: `1px solid ${theme.divider}`, paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {countryStats.map(seg => {
+                    const key = seg.code ?? NO_COUNTRY
+                    const active = countryFilter === key
+                    const pct = total > 0 ? (seg.value / total) * 100 : 0
+                    const pctLabel = pct.toFixed(1).replace('.', decimalSep) + '%'
+                    const chipColor = isDark ? hexLighten(seg.color, 0.35) : seg.color
+                    return (
+                      <button key={key}
+                        onClick={() => setCountryFilter(active ? '' : key)}
+                        title={active ? t('budget.clearCountryFilter') : t('budget.filterByCountry')}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12, width: '100%', textAlign: 'left',
+                          padding: '10px 8px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
+                          background: active ? theme.rowHover : 'transparent',
+                          border: `1px solid ${active ? seg.color + '55' : 'transparent'}`,
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = theme.rowHover}
+                        onMouseLeave={e => e.currentTarget.style.background = active ? theme.rowHover : 'transparent'}
+                      >
+                        <div style={{
+                          width: 10, height: 10, borderRadius: 3, flexShrink: 0,
+                          background: `linear-gradient(135deg, ${seg.color}, ${hexLighten(seg.color, 0.2)})`,
+                          boxShadow: `0 0 12px ${seg.color}80`,
+                        }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 'calc(13.5px * var(--fs-scale-body, 1))', fontWeight: 500, letterSpacing: '-0.01em', color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {seg.flag ? seg.flag + ' ' : ''}{seg.label}
+                            {seg.days > 0 && (
+                              <span style={{ color: theme.faint, fontWeight: 500 }}> · {seg.days} {t('budget.daysShort')}</span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: 'calc(11.5px * var(--fs-scale-caption, 1))', color: theme.sub, fontWeight: 500, marginTop: 1 }}>{fmt(seg.value, currency)}</div>
+                        </div>
+                        <span style={{
+                          flexShrink: 0,
+                          padding: '4px 9px', borderRadius: 7,
+                          fontSize: 'calc(11px * var(--fs-scale-caption, 1))', fontWeight: 700, letterSpacing: '-0.01em',
+                          background: `${seg.color}26`,
+                          border: `1px solid ${seg.color}40`,
+                          color: chipColor,
+                        }}>{pctLabel}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ── Cost per day, per country ───────────────────────────────────
+              Total spent in a country divided by the days actually spent there,
+              so a cheap-but-long leg reads differently from a short expensive
+              one. Countries with no resolved day count have no rate to show. */}
+          {countryStats.some(c => c.perDay != null) && (() => {
+            const rated = countryStats.filter(c => c.perDay != null)
+              .sort((a, b) => (b.perDay as number) - (a.perDay as number))
+            const max = Math.max(...rated.map(c => c.perDay as number))
+            return (
+              <div style={{
+                background: theme.bg,
+                borderRadius: 20, padding: 20, color: theme.text, marginBottom: 16,
+                border: `1px solid ${theme.border}`,
+                boxShadow: theme.shadow,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 11,
+                    background: theme.iconBg,
+                    border: `1px solid ${theme.iconBorder}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: theme.iconColor, flexShrink: 0,
+                  }}>
+                    <CalendarDays size={18} strokeWidth={2} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'calc(11px * var(--fs-scale-caption, 1))', color: theme.faint, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 600 }}>{t('budget.perDayByCountry')}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {rated.map(c => {
+                    const perDay = c.perDay as number
+                    const width = max > 0 ? Math.max(2, (perDay / max) * 100) : 0
+                    return (
+                      <div key={c.code ?? NO_COUNTRY}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+                          <span style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 500, color: theme.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                            {c.flag ? c.flag + ' ' : ''}{c.label}
+                            <span style={{ color: theme.faint }}> · {c.days} {t('budget.daysShort')}</span>
+                          </span>
+                          <span style={{ fontSize: 'calc(12.5px * var(--fs-scale-body, 1))', fontWeight: 700, color: theme.text, letterSpacing: '-0.01em', flexShrink: 0 }}>
+                            {fmt(perDay, currency)}
+                          </span>
+                        </div>
+                        <div style={{ height: 8, borderRadius: 6, background: theme.track, overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${width}%`, height: '100%', borderRadius: 6,
+                            background: `linear-gradient(90deg, ${c.color}, ${hexLighten(c.color, 0.25)})`,
+                          }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ marginTop: 14, fontSize: 'calc(11px * var(--fs-scale-caption, 1))', color: theme.faint, lineHeight: 1.5 }}>
+                  {t('budget.perDayByCountryHint')}
                 </div>
               </div>
             )

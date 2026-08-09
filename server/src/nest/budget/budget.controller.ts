@@ -57,6 +57,13 @@ export class BudgetController {
     return { summary: this.budget.perPersonSummary(tripId) };
   }
 
+  /** Country attribution for the expense table's per-country filter and charts. */
+  @Get('countries')
+  countries(@CurrentUser() user: User, @Param('tripId') tripId: string) {
+    this.requireTrip(tripId, user);
+    return this.budget.countries(tripId);
+  }
+
   @Get('settlement')
   settlement(
     @CurrentUser() user: User,
