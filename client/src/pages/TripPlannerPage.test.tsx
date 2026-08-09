@@ -310,6 +310,20 @@ describe('TripPlannerPage', () => {
     });
   });
 
+  describe('FE-PAGE-PLANNER-107: the planner shows as soon as the trip is loaded', () => {
+    it('renders the trip without waiting on any timer (no artificial splash delay)', async () => {
+      // Deliberately NO fake timers and NO runAllTimers: the UI used to sit behind
+      // a fixed 1.5s "loading place photos" splash on every open. Photos stream in
+      // afterwards, so nothing may gate the planner but the trip data itself.
+      seedTripStore({ id: 42, tripName: 'YOLO' });
+
+      renderPlannerPage(42);
+
+      await screen.findByText('YOLO');
+      expect(screen.queryByText(/Loading place photos/i)).not.toBeInTheDocument();
+    });
+  });
+
   describe('FE-PAGE-PLANNER-004: Trip name in header after load', () => {
     it('shows trip title in the Navbar after splash screen', async () => {
       vi.useFakeTimers();

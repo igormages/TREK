@@ -213,7 +213,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     handleAssignToDay, handleRemoveAssignment, handleReorder, handleReorderDays, handleAddDay, handleUpdateDayTitle,
     handleSaveReservation, handleSaveTransport, handleDeleteReservation,
     selectedPlace, dayOrderMap, dayPlaces,
-    mapTileUrl, fontStyle, splashDone,
+    mapTileUrl, fontStyle,
   } = useTripPlanner()
 
   const poi = usePoiExplore()
@@ -235,7 +235,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
     else if (req.prefill) setBookingExpense({ editing: null, prefill: req.prefill })
   }
 
-  if (isLoading || !splashDone) {
+  // Only the trip data gates the UI. Place photos stream in afterwards through
+  // photoService (cached + in-flight deduped), so holding the whole planner back
+  // for them — as a fixed 1.5s splash used to — just delayed every single open.
+  if (isLoading) {
     return (
       <div className="bg-surface" style={{
         minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
