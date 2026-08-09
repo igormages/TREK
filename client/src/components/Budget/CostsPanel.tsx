@@ -16,6 +16,7 @@ import CustomSelect from '../shared/CustomSelect'
 import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import { SYMBOLS, currenciesWith, SPLIT_COLORS } from './BudgetPanel.constants'
 import { payersBalanced, rebalancePayers } from './CostsPanel.helpers'
+import { countryFlag, countryName } from './BudgetPanel.helpers'
 import { COST_CATEGORY_LIST, catMeta } from './costsCategories'
 import type { BudgetItem } from '../../types'
 import type { TripMember } from './BudgetPanelMemberChips'
@@ -161,6 +162,21 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
 
   useEffect(() => { loadBudgetItems(tripId); loadSettlement() }, [tripId])
   useEffect(() => { loadSettlement() }, [budgetItems.length, base])
+
+  // Where each expense was incurred — derived server-side from the itinerary
+  // (expense date -> day -> that day's places). Absent until it loads, and simply
+  // stays absent if the endpoint fails: the row renders as it always did.
+  const [placeOf, setPlaceOf] = useState<Map<number, { country: string | null; city: string | null }>>(new Map())
+  useEffect(() => {
+    let cancelled = false
+    budgetApi.countries(tripId)
+      .then(d => {
+        if (cancelled) return
+        setPlaceOf(new Map(d.items.map(i => [i.id, { country: i.country_code, city: i.city }])))
+      })
+      .catch(() => { if (!cancelled) setPlaceOf(new Map()) })
+    return () => { cancelled = true }
+  }, [tripId, budgetItems.length])
 
   // The bottom-nav "+" on the Costs tab opens the add-expense modal via ?create=expense.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -732,6 +748,18 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
             <span className="text-content" style={{ fontSize: 'calc(15px * var(--fs-scale-subtitle, 1))', fontWeight: 600 }}>{e.name}</span>
+            {(() => {
+              const loc = placeOf.get(e.id)
+              if (!loc?.country) return null
+              const label = [countryName(loc.country, locale, loc.country), loc.city].filter(Boolean).join(' · ')
+              return (
+                <span className="bg-surface-secondary border border-edge text-content-muted" title={label}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px', borderRadius: 999, fontSize: 'calc(11.5px * var(--fs-scale-caption, 1))', fontWeight: 600, flexShrink: 0, maxWidth: '100%', overflow: 'hidden' }}>
+                  <span aria-hidden>{countryFlag(loc.country)}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
+                </span>
+              )
+            })()}
             {unfinished && !isMobile && (
               <span title={t('costs.unfinishedHint')} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px 2px 6px', borderRadius: 999, background: 'rgba(217,119,6,0.14)', color: '#d97706', fontSize: 'calc(11px * var(--fs-scale-caption, 1))', fontWeight: 700, flexShrink: 0 }}>
                 <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#d97706', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 'calc(10px * var(--fs-scale-caption, 1))', fontWeight: 800 }}>!</span>

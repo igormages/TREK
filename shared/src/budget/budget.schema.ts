@@ -132,6 +132,9 @@ export type BudgetItem = z.infer<typeof budgetItemSchema>;
 export const budgetItemCountrySchema = z.object({
   id: z.number(),
   country_code: z.string().nullable(),
+  // City of the day the expense falls on. Null until that place has been reverse
+  // geocoded — the UI then shows the country alone.
+  city: z.string().nullable(),
 });
 export type BudgetItemCountry = z.infer<typeof budgetItemCountrySchema>;
 

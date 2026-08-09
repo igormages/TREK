@@ -838,6 +838,89 @@ function getPlacesForTrips(tripIds: number[]): Place[] {
 
 // ── Country resolution (batch DB cache + sync fallback + background geocoding) ──
 
+// ── City resolution ─────────────────────────────────────────────────────────
+//
+// The bundled admin0/admin1 polygons stop at the region level, so a city name can
+// only come from reverse geocoding. It is cached per place in place_regions.city,
+// filled by the same background passes that fill the region — the network is hit at
+// most once per place and never on a render path. A place that has not been
+// geocoded yet simply has no city, and callers fall back to the country alone.
+
+/** The finest populated-place name Nominatim gives us, coarse-to-fine fallbacks. */
+export function cityFromAddress(address: Record<string, string> | null | undefined): string | null {
+  if (!address) return null;
+  return (
+    address.city ||
+    address.town ||
+    address.village ||
+    address.municipality ||
+    address.city_district ||
+    address.suburb ||
+    null
+  );
+}
+
+/** Cached city per place id; places with no cached city are absent from the map. */
+export function resolvePlaceCities(placeIds: number[]): Map<number, string> {
+  if (placeIds.length === 0) return new Map();
+  const rows = db
+    .prepare(
+      `SELECT place_id, city FROM place_regions WHERE city IS NOT NULL AND city != '' AND place_id IN (${placeIds
+        .map(() => '?')
+        .join(',')})`,
+    )
+    .all(...placeIds) as { place_id: number; city: string }[];
+  return new Map(rows.map((r) => [r.place_id, r.city]));
+}
+
+// Places whose city lookup is already queued, so a second caller does not enqueue
+// the same place again (the region pass keeps its own separate set).
+const cityLookupInFlight = new Set<number>();
+
+/**
+ * Cached cities, plus a background pass that fills the gaps.
+ *
+ * Deliberately NOT folded into the region geocoding above: that path resolves
+ * offline against the bundled polygons for almost every place and must stay
+ * network-free. A city has no offline source, so it gets its own opt-in lookup,
+ * kicked off only by callers that actually display one. The first call returns
+ * whatever is cached (often nothing); once the background pass lands, later calls
+ * return the real names — the caller shows the country alone in the meantime.
+ */
+export function ensurePlaceCities(places: Place[]): Map<number, string> {
+  const cached = resolvePlaceCities(places.map((p) => p.id));
+
+  const missing = places.filter(
+    (p) => p.lat && p.lng && !cached.has(p.id) && !cityLookupInFlight.has(p.id),
+  );
+  if (missing.length === 0) return cached;
+
+  const upsert = db.prepare(
+    `INSERT INTO place_regions (place_id, country_code, region_code, region_name, city)
+     VALUES (?, '', '', '', ?)
+     ON CONFLICT(place_id) DO UPDATE SET city = excluded.city`,
+  );
+  for (const p of missing) cityLookupInFlight.add(p.id);
+  void (async () => {
+    try {
+      for (const place of missing) {
+        try {
+          const city = cityFromAddress(await fetchNominatimAddress(place.lat!, place.lng!, 10));
+          if (city) upsert.run(place.id, city);
+        } catch {
+          /* individual failure — continue with the remaining places */
+        } finally {
+          cityLookupInFlight.delete(place.id);
+        }
+      }
+    } catch {
+      for (const p of missing) cityLookupInFlight.delete(p.id);
+    }
+  })();
+
+  return cached;
+}
+
 export function resolvePlaceCountries(places: Place[]): Map<number, string> {
   const out = new Map<number, string>();
   const geoPlaces = places.filter((p) => p.lat && p.lng);
@@ -880,7 +963,9 @@ export function resolvePlaceCountries(places: Place[]): Map<number, string> {
         for (const place of uncachedForGeocode) {
           try {
             const info = await reverseGeocodeRegion(place.lat!, place.lng!, place.address);
-            if (info) insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+            if (info) {
+              insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+            }
           } catch {
             /* continue */
           } finally {
@@ -1474,7 +1559,9 @@ export async function getVisitedRegions(
         for (const place of uncached) {
           try {
             const info = await reverseGeocodeRegion(place.lat!, place.lng!, place.address);
-            if (info) insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+            if (info) {
+              insertStmt.run(place.id, info.country_code, info.region_code, info.region_name);
+            }
           } catch {
             // individual failure — continue with remaining places
           } finally {

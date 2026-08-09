@@ -3759,6 +3759,15 @@ function runMigrations(db: Database.Database): void {
         db.exec('ALTER TABLE day_notes ADD COLUMN cost REAL');
       }
     },
+    () => {
+      // City name alongside the cached country/region, so an expense can be shown
+      // as "flag · country · city" without a lookup at render time. Filled by the
+      // same background geocoding pass that fills the region.
+      const cols = db.prepare('PRAGMA table_info(place_regions)').all() as { name: string }[];
+      if (!cols.some((c) => c.name === 'city')) {
+        db.exec('ALTER TABLE place_regions ADD COLUMN city TEXT');
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {
