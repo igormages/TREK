@@ -81,10 +81,15 @@ jobs:
           set -euo pipefail
           IMAGE_TAG="$1"
           cd /opt/trek
+          # Libère l'espace des images des déploiements précédents avant le pull :
+          # elles restent taguées par SHA, donc invisibles pour `prune -f` (dangling only)
+          docker image prune -af
+          docker builder prune -af || true
+          df -h / | tail -1
           sed -i "s|image:.*|image: ghcr.io/igormages/trek:${IMAGE_TAG}|" docker-compose.yml
           docker compose pull
           docker compose up -d --remove-orphans
-          docker image prune -f
+          docker image prune -af
           echo "Running: $(docker inspect trek --format '{{.Config.Image}}')"
           REMOTE
 
