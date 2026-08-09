@@ -1,6 +1,6 @@
 import { db } from '../db/database';
 import { Place } from '../types';
-import { resolvePlaceCountries } from './atlasService';
+import { resolvePlaceCountries, ensurePlaceCities } from './atlasService';
 
 /**
  * Per-country breakdown of a trip's expenses.
@@ -20,6 +20,8 @@ import { resolvePlaceCountries } from './atlasService';
 export interface BudgetItemCountry {
   id: number;
   country_code: string | null;
+  /** City of the day the expense falls on; null until that place has been geocoded. */
+  city: string | null;
 }
 
 export interface BudgetCountryDays {
@@ -130,6 +132,7 @@ export function getTripCountryBreakdown(tripId: string | number): BudgetCountryB
           .all(...reservationPlaceIds) as Place[])
       : [];
   const placeCountry = resolvePlaceCountries([...assignmentPlaces, ...extraPlaces]);
+  const placeCity = ensurePlaceCities([...assignmentPlaces, ...extraPlaces]);
 
   // day id -> country of that day (before carry-forward)
   const placesByDay = new Map<number, string[]>();
@@ -141,18 +144,32 @@ export function getTripCountryBreakdown(tripId: string | number): BudgetCountryB
     else placesByDay.set(place.day_id, [code]);
   }
 
+  // City of the day: the first geolocated place with a known city, in itinerary
+  // order — the day's starting point, which is where its expenses are incurred.
+  const cityByDayId = new Map<number, string>();
+  for (const place of assignmentPlaces) {
+    if (cityByDayId.has(place.day_id)) continue;
+    const city = placeCity.get(place.id);
+    if (city) cityByDayId.set(place.day_id, city);
+  }
+
   const rawDayCodes = days.map((d) => dominantCountry(placesByDay.get(d.id) || []));
   const dayCodes = carryForward(rawDayCodes);
 
   const countryByDayId = new Map<number, string>();
   const countryByDate = new Map<string, string>();
+  const cityByDate = new Map<string, string>();
   const daysPerCountry = new Map<string, number>();
   days.forEach((day, i) => {
     const code = dayCodes[i];
     if (!code) return;
     countryByDayId.set(day.id, code);
     const dateKey = toDateKey(day.date);
-    if (dateKey) countryByDate.set(dateKey, code);
+    if (dateKey) {
+      countryByDate.set(dateKey, code);
+      const city = cityByDayId.get(day.id);
+      if (city) cityByDate.set(dateKey, city);
+    }
     daysPerCountry.set(code, (daysPerCountry.get(code) || 0) + 1);
   });
 
@@ -161,20 +178,32 @@ export function getTripCountryBreakdown(tripId: string | number): BudgetCountryB
   const itemCountries: BudgetItemCountry[] = items.map((item) => {
     const dateKey = toDateKey(item.expense_date);
     if (dateKey && countryByDate.has(dateKey)) {
-      return { id: item.id, country_code: countryByDate.get(dateKey)! };
+      return {
+        id: item.id,
+        country_code: countryByDate.get(dateKey)!,
+        city: cityByDate.get(dateKey) ?? null,
+      };
     }
     const reservation = item.reservation_id ? reservationById.get(item.reservation_id) : undefined;
     if (reservation) {
       if (reservation.day_id && countryByDayId.has(reservation.day_id)) {
-        return { id: item.id, country_code: countryByDayId.get(reservation.day_id)! };
+        return {
+          id: item.id,
+          country_code: countryByDayId.get(reservation.day_id)!,
+          city: cityByDayId.get(reservation.day_id) ?? null,
+        };
       }
       // A booking with no day (or a day outside the itinerary) can still carry its
       // own place — an airport, a hotel — which is enough to place the expense.
       if (reservation.place_id && placeCountry.has(reservation.place_id)) {
-        return { id: item.id, country_code: placeCountry.get(reservation.place_id)! };
+        return {
+          id: item.id,
+          country_code: placeCountry.get(reservation.place_id)!,
+          city: placeCity.get(reservation.place_id) ?? null,
+        };
       }
     }
-    return { id: item.id, country_code: null };
+    return { id: item.id, country_code: null, city: null };
   });
 
   const countries = Array.from(daysPerCountry.entries())
