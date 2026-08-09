@@ -143,6 +143,37 @@ describe('CostsPanel — country and month breakdowns', () => {
     })
   })
 
+  it('hides the who-owes-whom UI on a trip with a single member', async () => {
+    mockApis()
+    // A family trip has one account: balances are all zero, every expense reads
+    // as "unfinished" for want of a payer, and the per-payer filters filter
+    // nothing. None of it should be shown.
+    const { container } = render(<CostsPanel tripId={1} tripMembers={[{ id: 1, username: 'alice', avatar_url: null }]} />)
+
+    await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
+    const text = container.textContent || ''
+    expect(text).not.toContain('You owe')
+    expect(text).not.toContain("You're owed")
+    expect(text).not.toContain('Outstanding')
+    expect(text).not.toContain('Balances')
+    expect(text).not.toContain('Unfinished')
+    // The ledger itself stays — that is what a solo traveller actually reads.
+    expect(text).toContain('Hotel Seoul')
+  })
+
+  it('keeps the who-owes-whom UI on a shared trip', async () => {
+    mockApis()
+    const { container } = render(
+      <CostsPanel tripId={1} tripMembers={[
+        { id: 1, username: 'alice', avatar_url: null },
+        { id: 2, username: 'bob', avatar_url: null },
+      ]} />
+    )
+
+    await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
+    expect(container.textContent).toContain('Balances')
+  })
+
   it('hides the country breakdowns entirely when the endpoint fails', async () => {
     server.use(
       http.get('/api/trips/1/budget', () => HttpResponse.json({ items: ITEMS })),
