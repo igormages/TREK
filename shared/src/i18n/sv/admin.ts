@@ -78,6 +78,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Åtgärder',
   'admin.you': '(Du)',
   'admin.editUser': 'Redigera anvädnare',
+  'admin.birthDate': 'Födelsedatum',
+  'admin.birthDateHint': 'Barn under två år räknas inte med i boendesökningar.',
   'admin.newPassword': 'Nytt lösenord',
   'admin.newPasswordHint': 'Lämna fältet tomt för att behålla det nuvarande lösenordet',
   'admin.deleteUser': 'Ta bort användare "{name}"? Alla resor kommer att raderas permanent.',

@@ -57,6 +57,10 @@ export const tripMemberSchema = z.object({
   invited_by_username: z.string().nullable().optional(),
   // Guest members (#1362): accountless participant, assignable but never able to log in.
   is_guest: z.boolean().optional(),
+  // Optional birth date (YYYY-MM-DD), set by an admin. An accommodation search
+  // prices a room by its adult occupants, so an under-two has to be countable
+  // as an infant rather than as a third guest. Absent = assume adult.
+  birth_date: z.string().nullable().optional(),
 });
 export type TripMember = z.infer<typeof tripMemberSchema>;
 

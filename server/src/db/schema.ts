@@ -28,6 +28,7 @@ function createTables(db: Database.Database): void {
       password_version INTEGER NOT NULL DEFAULT 0,
       feed_token TEXT,
       is_guest INTEGER NOT NULL DEFAULT 0,
+      birth_date TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );

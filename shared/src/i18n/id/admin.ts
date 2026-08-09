@@ -77,6 +77,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Tindakan',
   'admin.you': '(Kamu)',
   'admin.editUser': 'Edit Pengguna',
+  'admin.birthDate': 'Tanggal lahir',
+  'admin.birthDateHint': 'Anak di bawah dua tahun tidak dihitung dalam pencarian akomodasi.',
   'admin.newPassword': 'Kata Sandi Baru',
   'admin.newPasswordHint': 'Kosongkan untuk mempertahankan kata sandi saat ini',
   'admin.deleteUser': 'Hapus pengguna "{name}"? Semua perjalanan akan dihapus secara permanen.',

@@ -10,6 +10,8 @@ export interface AdminUser {
   online?: boolean
   oidc_issuer?: string | null
   avatar_url?: string | null
+  /** YYYY-MM-DD or null. Lets an accommodation search count adults, not heads. */
+  birth_date?: string | null
 }
 
 export interface AdminStats {

@@ -78,6 +78,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'hành động',
   'admin.you': '(Bạn)',
   'admin.editUser': 'Chỉnh sửa người dùng',
+  'admin.birthDate': 'Ngày sinh',
+  'admin.birthDateHint': 'Trẻ dưới hai tuổi không được tính khi tìm chỗ ở.',
   'admin.newPassword': 'Mật khẩu mới',
   'admin.newPasswordHint': 'Để trống để giữ mật khẩu hiện tại',
   'admin.deleteUser': 'Xóa người dùng "{name}"? Tất cả các chuyến đi sẽ bị xóa vĩnh viễn.',

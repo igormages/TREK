@@ -74,6 +74,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': '操作',
   'admin.you': '（你）',
   'admin.editUser': '編輯使用者',
+  'admin.birthDate': '出生日期',
+  'admin.birthDateHint': '兩歲以下不計入住宿搜尋的人數。',
   'admin.newPassword': '新密碼',
   'admin.newPasswordHint': '留空則保持當前密碼',
   'admin.deleteUser': '刪除使用者「{name}」？所有旅行將被永久刪除。',

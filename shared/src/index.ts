@@ -45,6 +45,10 @@ export * from './oidc/oidc.schema';
 export * from './oauth/oauth.schema';
 export * from './admin/admin.schema';
 
+// Traveller ages — pure helpers, no schema: who counts as an adult when an
+// accommodation search is priced (an under-two sleeps in a cot, not a bed).
+export * from './traveler/traveler';
+
 // Sanitisation helpers — used by the client today, scoped here so the server
 // has them ready if rich-text input ever ships.
 export * from './sanitize/sanitize';

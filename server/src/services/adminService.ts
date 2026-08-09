@@ -4,6 +4,7 @@ import { db } from '../db/database';
 import { revokeUserSessions, revokeUserSessionsForClient } from '../mcp';
 import { emitUserDeleted } from '../plugin-user-lifecycle';
 import { User, Addon } from '../types';
+import { isValidBirthDate } from '@trek/shared';
 import { maybe_encrypt_api_key, decrypt_api_key } from './apiKeyCrypto';
 import { resolveAuthToggles } from './authService';
 import { avatarUrl } from './avatarUrl';
@@ -73,9 +74,12 @@ export function listUsers() {
   // of admin user management entirely.
   const users = db
     .prepare(
-      'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users WHERE COALESCE(is_guest, 0) = 0 ORDER BY created_at DESC',
+      'SELECT id, username, email, role, avatar, birth_date, created_at, updated_at, last_login FROM users WHERE COALESCE(is_guest, 0) = 0 ORDER BY created_at DESC',
     )
-    .all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & {
+    .all() as (Pick<
+    User,
+    'id' | 'username' | 'email' | 'role' | 'birth_date' | 'created_at' | 'updated_at' | 'last_login'
+  > & {
     avatar?: string | null;
   })[];
   let onlineUserIds = new Set<number>();
@@ -95,7 +99,26 @@ export function listUsers() {
   }));
 }
 
-export function createUser(data: { username: string; email: string; password: string; role?: string }) {
+/**
+ * A birth date from the admin form is either a real `YYYY-MM-DD` or nothing:
+ * an empty field means "clear it", and anything malformed is rejected outright
+ * rather than stored as a string no age calculation can read.
+ */
+function normaliseBirthDate(value: unknown): { ok: true; value: string | null } | { ok: false } {
+  if (value === null || value === undefined) return { ok: true, value: null };
+  if (typeof value !== 'string') return { ok: false };
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, value: null };
+  return isValidBirthDate(trimmed) ? { ok: true, value: trimmed } : { ok: false };
+}
+
+export function createUser(data: {
+  username: string;
+  email: string;
+  password: string;
+  role?: string;
+  birth_date?: string | null;
+}) {
   const username = data.username?.trim();
   const email = data.email?.trim();
   const password = data.password?.trim();
@@ -120,14 +143,17 @@ export function createUser(data: { username: string; email: string; password: st
   const existingEmail = db.prepare('SELECT id FROM users WHERE email = ? AND COALESCE(is_guest, 0) = 0').get(email);
   if (existingEmail) return { error: 'Email already taken', status: 409 };
 
+  const birthDate = normaliseBirthDate(data.birth_date);
+  if (!birthDate.ok) return { error: 'Invalid birth date', status: 400 };
+
   const passwordHash = bcrypt.hashSync(password, BCRYPT_COST);
 
   const result = db
-    .prepare('INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)')
-    .run(username, email, passwordHash, data.role || 'user');
+    .prepare('INSERT INTO users (username, email, password_hash, role, birth_date) VALUES (?, ?, ?, ?, ?)')
+    .run(username, email, passwordHash, data.role || 'user', birthDate.value);
 
   const user = db
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, birth_date, created_at, updated_at FROM users WHERE id = ?')
     .get(result.lastInsertRowid);
 
   return {
@@ -137,16 +163,28 @@ export function createUser(data: { username: string; email: string; password: st
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string }) {
+export function updateUser(
+  id: string,
+  data: { username?: string; email?: string; role?: string; password?: string; birth_date?: string | null },
+) {
   const username = typeof data.username === 'string' ? data.username.trim() : data.username;
   const email = typeof data.email === 'string' ? data.email.trim() : data.email;
   const { role, password } = data;
+  // Unlike the other fields, a birth date has to be erasable — so an absent key
+  // means "leave alone" while an empty value means "clear", which the
+  // COALESCE(?, col) idiom below cannot express.
+  const birthDateProvided = Object.prototype.hasOwnProperty.call(data, 'birth_date');
+  const birthDate = normaliseBirthDate(data.birth_date);
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
 
   if (role && !['user', 'admin'].includes(role)) {
     return { error: 'Invalid role', status: 400 };
+  }
+
+  if (birthDateProvided && !birthDate.ok) {
+    return { error: 'Invalid birth date', status: 400 };
   }
 
   if (username && username !== user.username) {
@@ -187,13 +225,22 @@ export function updateUser(id: string, data: { username?: string; email?: string
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
+      birth_date = CASE WHEN ? THEN ? ELSE birth_date END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `,
-  ).run(username || null, email || null, role || null, passwordHash, id);
+  ).run(
+    username || null,
+    email || null,
+    role || null,
+    passwordHash,
+    birthDateProvided ? 1 : 0,
+    birthDate.ok ? birthDate.value : null,
+    id,
+  );
 
   const updated = db
-    .prepare('SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?')
+    .prepare('SELECT id, username, email, role, birth_date, created_at, updated_at FROM users WHERE id = ?')
     .get(id);
 
   const changed: string[] = [];
@@ -201,6 +248,9 @@ export function updateUser(id: string, data: { username?: string; email?: string
   if (email) changed.push('email');
   if (role) changed.push('role');
   if (password) changed.push('password');
+  if (birthDateProvided && birthDate.ok && birthDate.value !== (user.birth_date ?? null)) {
+    changed.push('birth_date');
+  }
 
   return {
     user: updated,

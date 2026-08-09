@@ -35,6 +35,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Ações',
   'admin.you': '(Você)',
   'admin.editUser': 'Editar usuário',
+  'admin.birthDate': 'Deiziad ganedigezh',
+  'admin.birthDateHint': "N'eo ket kontet ar vugale dindan daou vloaz er c'hlaskoù lojeiz.",
   'admin.newPassword': 'Nova senha',
   'admin.newPasswordHint': 'Deixe em branco para manter a senha atual',
   'admin.deleteUser': 'Excluir o usuário "{name}"? Todas as viagens serão excluídas permanentemente.',

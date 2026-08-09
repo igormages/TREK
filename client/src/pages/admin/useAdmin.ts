@@ -28,9 +28,9 @@ export function useAdmin() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
-  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string }>({ username: '', email: '', role: 'user', password: '' })
+  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; birth_date: string }>({ username: '', email: '', role: 'user', password: '', birth_date: '' })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
-  const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string }>({ username: '', email: '', password: '', role: 'user' })
+  const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; birth_date: string }>({ username: '', email: '', password: '', role: 'user', birth_date: '' })
 
   // Bag tracking
   const [bagTrackingEnabled, setBagTrackingEnabled] = useState<boolean>(false)
@@ -273,7 +273,7 @@ export function useAdmin() {
       const data = await adminApi.createUser(createForm)
       setUsers(prev => [data.user, ...prev])
       setShowCreateUser(false)
-      setCreateForm({ username: '', email: '', password: '', role: 'user' })
+      setCreateForm({ username: '', email: '', password: '', role: 'user', birth_date: '' })
       toast.success(t('admin.toast.userCreated'))
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t('admin.toast.createError')))
@@ -315,15 +315,18 @@ export function useAdmin() {
 
   const handleEditUser = (user) => {
     setEditingUser(user)
-    setEditForm({ username: user.username, email: user.email, role: user.role, password: '' })
+    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', birth_date: user.birth_date || '' })
   }
 
   const handleSaveUser = async () => {
     try {
-      const payload: { username?: string; email?: string; role: string; password?: string } = {
+      const payload: { username?: string; email?: string; role: string; password?: string; birth_date: string } = {
         username: editForm.username.trim() || undefined,
         email: editForm.email.trim() || undefined,
         role: editForm.role,
+        // Always sent, unlike the fields above: an emptied field has to reach the
+        // server as "clear it" rather than be read as "unchanged".
+        birth_date: editForm.birth_date.trim(),
       }
       if (editForm.password.trim()) {
         if (editForm.password.trim().length < 8) {
@@ -333,7 +336,10 @@ export function useAdmin() {
         payload.password = editForm.password.trim()
       }
       const data = await adminApi.updateUser(editingUser.id, payload)
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? data.user : u))
+      // Merged rather than replaced: the update response is narrower than the
+      // list row, so overwriting it wholesale drops avatar_url and online until
+      // the next reload.
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...data.user } : u))
       setEditingUser(null)
       toast.success(t('admin.toast.userUpdated'))
     } catch (err: unknown) {

@@ -69,6 +69,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'الإجراءات',
   'admin.you': '(أنت)',
   'admin.editUser': 'تعديل المستخدم',
+  'admin.birthDate': 'تاريخ الميلاد',
+  'admin.birthDateHint': 'لا يُحتسب من هم دون سن الثانية ضمن نتائج البحث عن أماكن الإقامة.',
   'admin.newPassword': 'كلمة مرور جديدة',
   'admin.newPasswordHint': 'اتركه فارغًا للاحتفاظ بالحالية',
   'admin.deleteUser': 'حذف المستخدم "{name}"؟ سيتم حذف جميع الرحلات نهائيًا.',

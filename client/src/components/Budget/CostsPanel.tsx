@@ -288,11 +288,13 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
       const byDate = (a.date || '').localeCompare(b.date || '')
       return byDate !== 0 ? byDate : (a.time || '').localeCompare(b.time || '')
     })
-    const groups: { day: string; entries: LedgerEntry[] }[] = []
+    // Grouped on the ISO date, not on its label: the label carries no year, so
+    // keying by it would fold two same-day-and-month entries of different years
+    // into one heading on a trip that runs longer than a year.
+    const groups: { key: string; day: string; entries: LedgerEntry[] }[] = []
     for (const en of sorted) {
-      const day = labelOf(en.date)
-      let g = groups.find(x => x.day === day)
-      if (!g) { g = { day, entries: [] }; groups.push(g) }
+      let g = groups.find(x => x.key === en.date)
+      if (!g) { g = { key: en.date, day: labelOf(en.date), entries: [] }; groups.push(g) }
       g.entries.push(en)
     }
     return groups
@@ -547,7 +549,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
           ) : dayGroups.map(g => {
             const dtot = g.entries.reduce((a, en) => en.kind === 'expense' ? a + baseTotal(en.e) : a, 0)
             return (
-              <div key={g.day} style={{ marginBottom: 22 }}>
+              <div key={g.key} style={{ marginBottom: 22 }}>
                 {!dayFilter && (
                 <div className={labelCls} style={{ display: 'flex', alignItems: 'center', margin: '0 0 10px 4px' }}>
                   {g.day}<span className="text-content-muted" style={{ marginLeft: 'auto', textTransform: 'none', letterSpacing: 0, fontWeight: 500, fontSize: 'calc(12px * var(--fs-scale-body, 1))' }}>{t('costs.spent', { amount: fmt(dtot) })}</span>
@@ -770,7 +772,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
             : dayGroups.map(g => {
                 const dtot = g.entries.reduce((a, en) => en.kind === 'expense' ? a + baseTotal(en.e) : a, 0)
                 return (
-                  <div key={g.day} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div key={g.key} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {!dayFilter && <div className={labelCls} style={{ display: 'flex', alignItems: 'center', padding: '0 2px' }}>{g.day}<span className="text-content-muted" style={{ marginLeft: 'auto', textTransform: 'none', letterSpacing: 0, fontWeight: 500, fontSize: 'calc(11.5px * var(--fs-scale-caption, 1))' }}>{t('costs.spent', { amount: fmt(dtot) })}</span></div>}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{g.entries.map(en => en.kind === 'expense'
                       ? <ExpenseRow key={'e' + en.e.id} e={en.e} />

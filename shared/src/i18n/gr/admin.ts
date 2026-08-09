@@ -81,6 +81,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Ενέργειες',
   'admin.you': '(Εσείς)',
   'admin.editUser': 'Επεξεργασία Χρήστη',
+  'admin.birthDate': 'Ημερομηνία γέννησης',
+  'admin.birthDateHint': 'Τα παιδιά κάτω των δύο ετών δεν μετρούν στις αναζητήσεις καταλυμάτων.',
   'admin.newPassword': 'Νέος Κωδικός',
   'admin.newPasswordHint': 'Αφήστε κενό για να διατηρηθεί ο τρέχων κωδικός',
   'admin.deleteUser': 'Διαγραφή χρήστη "{name}"; Όλα τα ταξίδια θα διαγραφούν μόνιμα.',

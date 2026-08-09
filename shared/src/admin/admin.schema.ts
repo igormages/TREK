@@ -13,8 +13,24 @@ export const adminUserCreateRequestSchema = z.object({
   password: z.string().optional(),
   username: z.string().optional(),
   role: z.enum(['user', 'admin']).optional(),
+  // YYYY-MM-DD or empty. The service rejects anything else (see normaliseBirthDate).
+  birth_date: z.string().nullable().optional(),
 });
 export type AdminUserCreateRequest = z.infer<typeof adminUserCreateRequestSchema>;
+
+/**
+ * Admin user edit. Every field is optional — an absent key leaves the column
+ * alone. `birth_date` is the exception that needs the distinction spelled out:
+ * absent means "leave alone", empty string or null means "clear it".
+ */
+export const adminUserUpdateRequestSchema = z.object({
+  email: z.string().optional(),
+  password: z.string().optional(),
+  username: z.string().optional(),
+  role: z.enum(['user', 'admin']).optional(),
+  birth_date: z.string().nullable().optional(),
+});
+export type AdminUserUpdateRequest = z.infer<typeof adminUserUpdateRequestSchema>;
 
 export const adminPermissionsRequestSchema = z.object({
   permissions: z.record(z.string(), z.unknown()),

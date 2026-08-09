@@ -36,6 +36,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Действия',
   'admin.you': '(Вы)',
   'admin.editUser': 'Редактировать пользователя',
+  'admin.birthDate': 'Дата рождения',
+  'admin.birthDateHint': 'Дети до двух лет не учитываются при поиске жилья.',
   'admin.newPassword': 'Новый пароль',
   'admin.newPasswordHint': 'Оставьте пустым, чтобы сохранить текущий пароль',
   'admin.deleteUser': 'Удалить пользователя «{name}»? Все поездки будут безвозвратно удалены.',

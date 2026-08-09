@@ -376,7 +376,7 @@ export function listMembers(tripId: string | number, tripOwnerId: number) {
   // u.is_guest rides along (#1362) so guests stay assignable everywhere a member is,
   // while the UI can badge them and suppress owner-only actions. The owner is never a guest.
   const members = db.prepare(`
-    SELECT u.id, COALESCE(u.display_name, u.username) AS username, u.email, u.avatar, u.is_guest,
+    SELECT u.id, COALESCE(u.display_name, u.username) AS username, u.email, u.avatar, u.is_guest, u.birth_date,
       CASE WHEN u.id = ? THEN 'owner' ELSE 'member' END as role,
       m.added_at,
       COALESCE(ib.display_name, ib.username) as invited_by_username
@@ -385,9 +385,11 @@ export function listMembers(tripId: string | number, tripOwnerId: number) {
     LEFT JOIN users ib ON ib.id = m.invited_by
     WHERE m.trip_id = ?
     ORDER BY m.added_at ASC
-  `).all(tripOwnerId, tripId) as { id: number; username: string; email: string; avatar: string | null; is_guest: number; role: string; added_at: string; invited_by_username: string | null }[];
+  `).all(tripOwnerId, tripId) as { id: number; username: string; email: string; avatar: string | null; is_guest: number; birth_date: string | null; role: string; added_at: string; invited_by_username: string | null }[];
 
-  const owner = db.prepare('SELECT id, username, email, avatar FROM users WHERE id = ?').get(tripOwnerId) as Pick<User, 'id' | 'username' | 'email' | 'avatar'>;
+  // birth_date rides along on both queries: an accommodation search counts the
+  // adults among the travellers, and the owner is one of them.
+  const owner = db.prepare('SELECT id, username, email, avatar, birth_date FROM users WHERE id = ?').get(tripOwnerId) as Pick<User, 'id' | 'username' | 'email' | 'avatar' | 'birth_date'>;
 
   return {
     owner: { ...owner, role: 'owner', is_guest: false, avatar_url: avatarUrl(owner) },

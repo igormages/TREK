@@ -36,6 +36,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Accions',
   'admin.you': '(Tu)',
   'admin.editUser': 'Editar usuari',
+  'admin.birthDate': 'Data de naixement',
+  'admin.birthDateHint': "Els menors de dos anys no compten a les cerques d'allotjament.",
   'admin.newPassword': 'Contrasenya nova',
   'admin.newPasswordHint': 'Deixa-ho buit per mantenir la contrasenya actual',
   'admin.deleteUser': 'Eliminar l\'usuari "{name}"? Tots els seus viatges s\'esborraran permanentment.',

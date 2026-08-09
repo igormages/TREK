@@ -145,6 +145,22 @@ describe('createUser (service)', () => {
     const result = svcCreateUser({ username: 'weakpwuser', email: 'weakpw@test.com', password: 'short' }) as any;
     expect(result.status).toBe(400);
   });
+
+  it('ADMIN-SVC-071 — stores a birth date given at creation', () => {
+    const result = svcCreateUser({ username: 'baby', email: 'baby@test.com', password: 'ValidPass1!', birth_date: '2026-09-18' }) as any;
+    expect(result.user.birth_date).toBe('2026-09-18');
+  });
+
+  it('ADMIN-SVC-072 — leaves the birth date null when none is given', () => {
+    const result = svcCreateUser({ username: 'nodob', email: 'nodob@test.com', password: 'ValidPass1!' }) as any;
+    expect(result.user.birth_date).toBeNull();
+  });
+
+  it('ADMIN-SVC-073 — returns 400 for a birth date that is not a real date', () => {
+    const result = svcCreateUser({ username: 'baddob', email: 'baddob@test.com', password: 'ValidPass1!', birth_date: '2027-02-30' }) as any;
+    expect(result.status).toBe(400);
+    expect(result.error).toMatch(/birth date/i);
+  });
 });
 
 // ── updateUser ────────────────────────────────────────────────────────────────
@@ -155,6 +171,35 @@ describe('updateUser', () => {
     const result = updateUser(String(user.id), { username: 'updatedname' }) as any;
     expect(result.user).toBeDefined();
     expect(result.user.username).toBe('updatedname');
+  });
+
+  it('ADMIN-SVC-074 — sets, then clears, the birth date', () => {
+    const { user } = createUser(testDb);
+    const set = updateUser(String(user.id), { birth_date: '2026-09-18' }) as any;
+    expect(set.user.birth_date).toBe('2026-09-18');
+    expect(set.changed).toContain('birth_date');
+
+    // An emptied field must erase the stored date — the other fields use
+    // COALESCE(?, col), where an empty value would silently mean "unchanged".
+    const cleared = updateUser(String(user.id), { birth_date: '' }) as any;
+    expect(cleared.user.birth_date).toBeNull();
+  });
+
+  it('ADMIN-SVC-075 — leaves the birth date alone when the key is absent', () => {
+    const { user } = createUser(testDb);
+    updateUser(String(user.id), { birth_date: '1990-01-01' });
+    const result = updateUser(String(user.id), { username: 'renamed-only' }) as any;
+    expect(result.user.birth_date).toBe('1990-01-01');
+    expect(result.changed).not.toContain('birth_date');
+  });
+
+  it('ADMIN-SVC-076 — rejects a malformed birth date without touching the row', () => {
+    const { user } = createUser(testDb);
+    updateUser(String(user.id), { birth_date: '1990-01-01' });
+    const result = updateUser(String(user.id), { birth_date: '18/09/2026' }) as any;
+    expect(result.status).toBe(400);
+    const row = testDb.prepare('SELECT birth_date FROM users WHERE id = ?').get(user.id) as any;
+    expect(row.birth_date).toBe('1990-01-01');
   });
 
   it('ADMIN-SVC-009 — returns 404 for non-existent user', () => {

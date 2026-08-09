@@ -3768,6 +3768,16 @@ function runMigrations(db: Database.Database): void {
         db.exec('ALTER TABLE place_regions ADD COLUMN city TEXT');
       }
     },
+    () => {
+      // Birth date (YYYY-MM-DD), set by an admin. Accommodation searches price a
+      // room by its adult occupants: an under-two sleeps in a cot and must be
+      // left out of the count, which needs an age rather than a head count.
+      // Null everywhere until filled — an unknown age still counts as an adult.
+      const cols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+      if (!cols.some((c) => c.name === 'birth_date')) {
+        db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT');
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {
