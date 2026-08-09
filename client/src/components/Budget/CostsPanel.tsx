@@ -14,11 +14,12 @@ import { formatMoney, currencyDecimals, currencyLocale } from '../../utils/forma
 import Modal from '../shared/Modal'
 import CustomSelect from '../shared/CustomSelect'
 import { CustomDatePicker } from '../shared/CustomDateTimePicker'
-import { SYMBOLS, currenciesWith, SPLIT_COLORS } from './BudgetPanel.constants'
+import { SYMBOLS, currenciesWith, SPLIT_COLORS, PIE_COLORS } from './BudgetPanel.constants'
 import { payersBalanced, rebalancePayers } from './CostsPanel.helpers'
 import { countryFlag, countryName } from './BudgetPanel.helpers'
 import { COST_CATEGORY_LIST, catMeta } from './costsCategories'
 import type { BudgetItem } from '../../types'
+import type { BudgetCountriesResponse } from '@trek/shared'
 import type { TripMember } from './BudgetPanelMemberChips'
 import GuestBadge from '../shared/GuestBadge'
 import { NumericInput } from '../shared/NumericInput'
@@ -139,6 +140,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')   // '' = all categories
   const [dayFilter, setDayFilter] = useState('')   // '' = all days, else YYYY-MM-DD
+  const [countryFilter, setCountryFilter] = useState('') // '' = all countries, else ISO alpha-2
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<BudgetItem | null>(null)
   const [editingSettlement, setEditingSettlement] = useState<Settlement | null>(null)
@@ -163,20 +165,26 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   useEffect(() => { loadBudgetItems(tripId); loadSettlement() }, [tripId])
   useEffect(() => { loadSettlement() }, [budgetItems.length, base])
 
-  // Where each expense was incurred — derived server-side from the itinerary
-  // (expense date -> day -> that day's places). Absent until it loads, and simply
-  // stays absent if the endpoint fails: the row renders as it always did.
-  const [placeOf, setPlaceOf] = useState<Map<number, { country: string | null; city: string | null }>>(new Map())
+  // Where and when each expense was incurred — derived server-side from the
+  // itinerary (expense date -> day -> that day's places). Absent until it loads,
+  // and simply stays absent if the endpoint fails: the panel renders as before.
+  const [countryData, setCountryData] = useState<BudgetCountriesResponse | null>(null)
   useEffect(() => {
     let cancelled = false
     budgetApi.countries(tripId)
-      .then(d => {
-        if (cancelled) return
-        setPlaceOf(new Map(d.items.map(i => [i.id, { country: i.country_code, city: i.city }])))
-      })
-      .catch(() => { if (!cancelled) setPlaceOf(new Map()) })
+      .then(d => { if (!cancelled) setCountryData(d) })
+      .catch(() => { if (!cancelled) setCountryData(null) })
     return () => { cancelled = true }
   }, [tripId, budgetItems.length])
+
+  const placeOf = useMemo(
+    () => new Map((countryData?.items || []).map(i => [i.id, { country: i.country_code, city: i.city, date: i.date }])),
+    [countryData],
+  )
+  const daysPerCountry = useMemo(
+    () => new Map((countryData?.countries || []).map(c => [c.code, c.days])),
+    [countryData],
+  )
 
   // The bottom-nav "+" on the Costs tab opens the add-expense modal via ?create=expense.
   const [searchParams, setSearchParams] = useSearchParams()
@@ -224,23 +232,24 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
     // filter matches rows saved before the category rework too.
     if (catFilter) list = list.filter(e => catMeta(e.category).key === catFilter)
     if (dayFilter) list = list.filter(e => (e.expense_date || '') === dayFilter)
+    if (countryFilter) list = list.filter(e => (placeOf.get(e.id)?.country || '') === countryFilter)
     const q = search.trim().toLowerCase()
     if (q) list = list.filter(e => e.name.toLowerCase().includes(q))
     return list
-  }, [budgetItems, filter, search, catFilter, dayFilter, me])
+  }, [budgetItems, filter, search, catFilter, dayFilter, countryFilter, placeOf, me])
 
   // Settlements ("payments") shown inline in the ledger. They have no name, so a
   // text search hides them; they're excluded from the "owed" expense filter and,
   // under "mine", only show transfers I'm part of.
   const filteredSettlements = useMemo(() => {
     // Payments carry no name or category, so a text/category filter hides them.
-    if (search.trim() || catFilter) return []
+    if (search.trim() || catFilter || countryFilter) return []
     if (filter === 'owed') return []
     let list = settlement?.settlements || []
     if (filter === 'mine') list = list.filter(s => s.from_user_id === me || s.to_user_id === me)
     if (dayFilter) list = list.filter(s => (s.created_at || '').slice(0, 10) === dayFilter)
     return list
-  }, [settlement, filter, search, catFilter, dayFilter, me])
+  }, [settlement, filter, search, catFilter, dayFilter, countryFilter, me])
 
   const dayGroups = useMemo(() => {
     const entries: LedgerEntry[] = [
@@ -268,6 +277,26 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
     { value: '', label: t('costs.filter.allCategories') },
     ...COST_CATEGORY_LIST.map(c => ({ value: c.key, label: t(c.labelKey), icon: <c.Icon size={14} style={{ color: c.color }} /> })),
   ], [t])
+
+  const countryOptions = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const e of budgetItems) {
+      const code = placeOf.get(e.id)?.country
+      if (code) totals.set(code, (totals.get(code) || 0) + 1)
+    }
+    const codes = [...totals.keys()].sort((a, b) =>
+      (daysPerCountry.get(b) || 0) - (daysPerCountry.get(a) || 0) || a.localeCompare(b))
+    return [
+      { value: '', label: t('costs.filter.allCountries') },
+      ...codes.map(code => {
+        const days = daysPerCountry.get(code) || 0
+        return {
+          value: code,
+          label: `${countryFlag(code)} ${countryName(code, locale, code)}${days ? ` · ${days} ${t('costs.daysShort')}` : ''}`,
+        }
+      }),
+    ]
+  }, [budgetItems, placeOf, daysPerCountry, locale, t])
 
   const dayOptions = useMemo(() => {
     const days = Array.from(new Set(budgetItems.map(e => e.expense_date).filter(Boolean) as string[])).sort((a, b) => b.localeCompare(a))
@@ -368,6 +397,9 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   const filterControls = (
     <>
       <CustomSelect value={catFilter} onChange={v => setCatFilter(String(v))} options={categoryOptions} size="sm" style={{ minWidth: 148 }} />
+      {countryOptions.length > 1 && (
+        <CustomSelect value={countryFilter} onChange={v => setCountryFilter(String(v))} options={countryOptions} size="sm" searchable style={{ minWidth: 150 }} />
+      )}
       <CustomSelect value={dayFilter} onChange={v => setDayFilter(String(v))} options={dayOptions} size="sm" searchable style={{ minWidth: 140 }} />
     </>
   )
@@ -533,6 +565,11 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
             <div className={labelCls} style={{ marginBottom: 14 }}>{t('costs.byCategory')}</div>
             <CategoryBreakdown />
           </div>
+
+          {/* Each renders nothing until the itinerary attribution has loaded. */}
+          <CountryBreakdown />
+          <PerDayByCountry />
+          <MonthlyBreakdown />
         </div>
       </div>
       </div>)}
@@ -696,6 +733,9 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <CustomSelect value={catFilter} onChange={v => setCatFilter(String(v))} options={categoryOptions} size="sm" style={{ flex: 1, minWidth: 0 }} />
+            {countryOptions.length > 1 && (
+              <CustomSelect value={countryFilter} onChange={v => setCountryFilter(String(v))} options={countryOptions} size="sm" searchable style={{ flex: 1, minWidth: 0 }} />
+            )}
             <CustomSelect value={dayFilter} onChange={v => setDayFilter(String(v))} options={dayOptions} size="sm" searchable style={{ flex: 1, minWidth: 0 }} />
           </div>
           {dayBanner}
@@ -725,6 +765,10 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
           <div className={labelCls} style={{ marginBottom: 14 }}>{t('costs.byCategory')}</div>
           <CategoryBreakdown />
         </div>
+
+        <CountryBreakdown />
+        <PerDayByCountry />
+        <MonthlyBreakdown />
       </div>
     )
   }
@@ -859,6 +903,126 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
             </div>
           )
         })}
+      </div>
+    )
+  }
+
+  // ── Sidebar breakdowns ───────────────────────────────────────────────────
+  // All three read the server-derived attribution (country/city/date per expense),
+  // so they cover every expense — including the ones with no date of their own,
+  // which are placed through the reservation they came from.
+
+  function CountryBreakdown() {
+    const tot = new Map<string, number>()
+    for (const e of budgetItems) {
+      const code = placeOf.get(e.id)?.country
+      if (code) tot.set(code, (tot.get(code) || 0) + baseTotal(e))
+    }
+    const rows = [...tot.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1])
+    if (rows.length === 0) return null
+    const max = Math.max(...rows.map(r => r[1]))
+    return (
+      <div className={cardCls} style={{ borderRadius: 18, padding: 16 }}>
+        <div className={labelCls} style={{ marginBottom: 14 }}>{t('costs.byCountry')}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {rows.map(([code, v], i) => {
+            const days = daysPerCountry.get(code) || 0
+            const color = PIE_COLORS[i % PIE_COLORS.length]
+            const active = countryFilter === code
+            return (
+              // Clicking a row filters the ledger to that country (and clicking the
+              // active one clears it), so the breakdown doubles as navigation.
+              <div key={code} role="button" tabIndex={0}
+                onClick={() => setCountryFilter(active ? '' : code)}
+                onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setCountryFilter(active ? '' : code) } }}
+                style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center', cursor: 'pointer', opacity: countryFilter && !active ? 0.55 : 1 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: color }} />
+                <span className="text-content" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {countryFlag(code)} {countryName(code, locale, code)}
+                  {days > 0 && <span className="text-content-faint" style={{ fontWeight: 500 }}> · {days} {t('costs.daysShort')}</span>}
+                </span>
+                <span className="text-content-muted" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 600 }}>{fmt0(v)}</span>
+                <div className="bg-surface-secondary" style={{ gridColumn: '1 / -1', height: 5, borderRadius: 3, overflow: 'hidden', marginTop: -2 }}>
+                  <span style={{ display: 'block', height: '100%', width: (max ? v / max * 100 : 0) + '%', background: color, borderRadius: 3 }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  function PerDayByCountry() {
+    const tot = new Map<string, number>()
+    for (const e of budgetItems) {
+      const code = placeOf.get(e.id)?.country
+      if (code) tot.set(code, (tot.get(code) || 0) + baseTotal(e))
+    }
+    // Only countries whose day count is known have a meaningful daily rate.
+    const rows = [...tot.entries()]
+      .map(([code, v]) => ({ code, perDay: (daysPerCountry.get(code) || 0) > 0 ? v / (daysPerCountry.get(code) as number) : null, days: daysPerCountry.get(code) || 0 }))
+      .filter((r): r is { code: string; perDay: number; days: number } => r.perDay != null)
+      .sort((a, b) => b.perDay - a.perDay)
+    if (rows.length === 0) return null
+    const max = Math.max(...rows.map(r => r.perDay))
+    return (
+      <div className={cardCls} style={{ borderRadius: 18, padding: 16 }}>
+        <div className={labelCls} style={{ marginBottom: 14 }}>{t('costs.perDayByCountry')}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {rows.map((r, i) => {
+            const color = PIE_COLORS[i % PIE_COLORS.length]
+            return (
+              <div key={r.code} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems: 'center' }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: color }} />
+                <span className="text-content" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {countryFlag(r.code)} {countryName(r.code, locale, r.code)}
+                  <span className="text-content-faint" style={{ fontWeight: 500 }}> · {r.days} {t('costs.daysShort')}</span>
+                </span>
+                <span className="text-content-muted" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 600 }}>{fmt0(r.perDay)}</span>
+                <div className="bg-surface-secondary" style={{ gridColumn: '1 / -1', height: 5, borderRadius: 3, overflow: 'hidden', marginTop: -2 }}>
+                  <span style={{ display: 'block', height: '100%', width: (max ? r.perDay / max * 100 : 0) + '%', background: color, borderRadius: 3 }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="text-content-faint" style={{ marginTop: 12, fontSize: 'calc(11px * var(--fs-scale-caption, 1))', lineHeight: 1.5 }}>
+          {t('costs.perDayByCountryHint')}
+        </div>
+      </div>
+    )
+  }
+
+  function MonthlyBreakdown() {
+    const tot = new Map<string, number>()
+    for (const e of budgetItems) {
+      // The server-derived date covers expenses that carry none of their own.
+      const date = placeOf.get(e.id)?.date || e.expense_date
+      if (!date) continue
+      tot.set(date.slice(0, 7), (tot.get(date.slice(0, 7)) || 0) + baseTotal(e))
+    }
+    // Chronological, so the bars read as a timeline of the trip.
+    const rows = [...tot.entries()].filter(([, v]) => v > 0).sort((a, b) => a[0].localeCompare(b[0]))
+    if (rows.length === 0) return null
+    const max = Math.max(...rows.map(r => r[1]))
+    const fmtMonth = (ym: string) => {
+      try { return new Date(ym + '-01T00:00:00Z').toLocaleDateString(locale, { month: 'short', year: 'numeric', timeZone: 'UTC' }) } catch { return ym }
+    }
+    return (
+      <div className={cardCls} style={{ borderRadius: 18, padding: 16 }}>
+        <div className={labelCls} style={{ marginBottom: 14 }}>{t('costs.byMonth')}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {rows.map(([ym, v]) => (
+            <div key={ym} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center' }}>
+              <span className="text-content" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 500, textTransform: 'capitalize' }}>{fmtMonth(ym)}</span>
+              <span className="text-content-muted" style={{ fontSize: 'calc(13px * var(--fs-scale-body, 1))', fontWeight: 600 }}>{fmt0(v)}</span>
+              <div className="bg-surface-secondary" style={{ gridColumn: '1 / -1', height: 5, borderRadius: 3, overflow: 'hidden', marginTop: -2 }}>
+                <span style={{ display: 'block', height: '100%', width: (max ? v / max * 100 : 0) + '%', background: 'var(--accent)', borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

@@ -135,6 +135,9 @@ export const budgetItemCountrySchema = z.object({
   // City of the day the expense falls on. Null until that place has been reverse
   // geocoded — the UI then shows the country alone.
   city: z.string().nullable(),
+  // Effective day of the expense (its own date, else its reservation's day), so
+  // the client can group by month without re-deriving the fallback.
+  date: z.string().nullable(),
 });
 export type BudgetItemCountry = z.infer<typeof budgetItemCountrySchema>;
 

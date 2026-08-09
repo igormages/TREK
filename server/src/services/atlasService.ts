@@ -895,18 +895,19 @@ export function ensurePlaceCities(places: Place[]): Map<number, string> {
   );
   if (missing.length === 0) return cached;
 
-  const upsert = db.prepare(
-    `INSERT INTO place_regions (place_id, country_code, region_code, region_name, city)
-     VALUES (?, '', '', '', ?)
-     ON CONFLICT(place_id) DO UPDATE SET city = excluded.city`,
-  );
+  // UPDATE only, never INSERT: a row created here would have to invent an empty
+  // country_code/region_code, and getVisitedRegions reads those — an empty region
+  // would surface as a bogus entry in Atlas. The region pass owns row creation
+  // (resolvePlaceCountries runs just before this and enqueues the same places), so
+  // a brand-new place simply gets its city on a later call.
+  const setCity = db.prepare('UPDATE place_regions SET city = ? WHERE place_id = ?');
   for (const p of missing) cityLookupInFlight.add(p.id);
   void (async () => {
     try {
       for (const place of missing) {
         try {
           const city = cityFromAddress(await fetchNominatimAddress(place.lat!, place.lng!, 10));
-          if (city) upsert.run(place.id, city);
+          if (city) setCity.run(city, place.id);
         } catch {
           /* individual failure — continue with the remaining places */
         } finally {
