@@ -96,18 +96,82 @@ describe('CostsPanel — country and month breakdowns', () => {
 
   it('filters the ledger down to one country', async () => {
     mockApis()
-    render(<CostsPanel tripId={1} tripMembers={tripMembers} />)
+    // Everything is scoped to THIS render's container: a screen-wide query can
+    // pick up DOM left behind by an earlier test in the file, and the click then
+    // lands on a button belonging to a dead tree — which made this flaky.
+    const { container } = render(<CostsPanel tripId={1} tripMembers={tripMembers} />)
 
-    await screen.findByText('Hotel Seoul')
-    // The "By country" rows double as filters, and only exist once the
-    // attribution has loaded.
-    await screen.findByText('By country')
-    const korea = screen.getAllByRole('button').filter(b => b.textContent?.includes('South Korea'))[0]
+    await waitFor(() => expect(container.textContent).toContain('Hotel Seoul'))
+    const korea = await waitFor(() => {
+      const b = [...container.querySelectorAll('[role="button"]')]
+        .find(x => x.textContent?.includes('South Korea'))
+      if (!b) throw new Error('country row not rendered yet')
+      return b as HTMLElement
+    })
     await userEvent.click(korea)
 
-    await waitFor(() => expect(screen.queryByText('Hotel Tokyo')).not.toBeInTheDocument())
-    expect(screen.queryByText('Ryokan Kyoto')).not.toBeInTheDocument()
-    expect(screen.getByText('Hotel Seoul')).toBeInTheDocument()
+    await waitFor(() => expect(container.textContent).not.toContain('Hotel Tokyo'))
+    expect(container.textContent).not.toContain('Ryokan Kyoto')
+    expect(container.textContent).toContain('Hotel Seoul')
+  })
+
+  it('orders the ledger chronologically, oldest day first', async () => {
+    mockApis()
+    const { container } = render(<CostsPanel tripId={1} tripMembers={tripMembers} />)
+
+    await screen.findByText('Hotel Tokyo')
+    await waitFor(() => {
+      const text = container.textContent || ''
+      // March days come before the April one, and the flight lands in March via
+      // its server-derived date rather than in a trailing "no date" block.
+      expect(text.indexOf('Hotel Tokyo')).toBeLessThan(text.indexOf('Ryokan Kyoto'))
+      expect(text.indexOf('Ryokan Kyoto')).toBeLessThan(text.indexOf('Hotel Seoul'))
+    })
+  })
+
+  it('places a dateless expense on its derived day instead of a "no date" block', async () => {
+    mockApis()
+    const { container } = render(<CostsPanel tripId={1} tripMembers={tripMembers} />)
+
+    // "Tokyo to Seoul" has expense_date: null but is derived to 2027-03-31, so it
+    // sits after the other March expenses and before the April one.
+    await screen.findByText('Tokyo to Seoul')
+    await waitFor(() => {
+      const text = container.textContent || ''
+      expect(text.indexOf('Ryokan Kyoto')).toBeLessThan(text.indexOf('Tokyo to Seoul'))
+      expect(text.indexOf('Tokyo to Seoul')).toBeLessThan(text.indexOf('Hotel Seoul'))
+    })
+  })
+
+  it('hides the who-owes-whom UI on a trip with a single member', async () => {
+    mockApis()
+    // A family trip has one account: balances are all zero, every expense reads
+    // as "unfinished" for want of a payer, and the per-payer filters filter
+    // nothing. None of it should be shown.
+    const { container } = render(<CostsPanel tripId={1} tripMembers={[{ id: 1, username: 'alice', avatar_url: null }]} />)
+
+    await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
+    const text = container.textContent || ''
+    expect(text).not.toContain('You owe')
+    expect(text).not.toContain("You're owed")
+    expect(text).not.toContain('Outstanding')
+    expect(text).not.toContain('Balances')
+    expect(text).not.toContain('Unfinished')
+    // The ledger itself stays — that is what a solo traveller actually reads.
+    expect(text).toContain('Hotel Seoul')
+  })
+
+  it('keeps the who-owes-whom UI on a shared trip', async () => {
+    mockApis()
+    const { container } = render(
+      <CostsPanel tripId={1} tripMembers={[
+        { id: 1, username: 'alice', avatar_url: null },
+        { id: 2, username: 'bob', avatar_url: null },
+      ]} />
+    )
+
+    await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
+    expect(container.textContent).toContain('Balances')
   })
 
   it('hides the country breakdowns entirely when the endpoint fails', async () => {

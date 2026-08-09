@@ -235,7 +235,9 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         // predates that use. Same 4000 cap as the REST route and the dialog.
         time: z.string().max(4000).optional().describe('Note body, markdown supported'),
         icon: z.string().optional().describe('Emoji icon for the note'),
-        cost: z.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
+        // Coerced, not strict: MCP clients routinely serialise numbers as strings,
+        // and a strict z.number() made this field unusable from the tool call.
+        cost: z.coerce.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
       },
       annotations: TOOL_ANNOTATIONS_NON_IDEMPOTENT,
     },
@@ -261,7 +263,9 @@ export function registerDayTools(server: McpServer, userId: number, scopes: stri
         text: z.string().min(1).max(500).optional().describe('Short title shown on the day card'),
         time: z.string().max(4000).nullable().optional().describe('Note body, markdown supported; null to clear'),
         icon: z.string().optional().describe('Emoji icon for the note'),
-        cost: z.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
+        // Coerced, not strict: MCP clients routinely serialise numbers as strings,
+        // and a strict z.number() made this field unusable from the tool call.
+        cost: z.coerce.number().nullable().optional().describe('Optional price carried by the note, in the trip currency'),
       },
       annotations: TOOL_ANNOTATIONS_WRITE,
     },
