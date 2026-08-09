@@ -3751,6 +3751,14 @@ function runMigrations(db: Database.Database): void {
         );
       `);
     },
+    () => {
+      // Day notes can carry their own price (airport transfer, entrance fee) so an
+      // itinerary note is costed without forcing a separate budget line.
+      const cols = db.prepare('PRAGMA table_info(day_notes)').all() as { name: string }[];
+      if (!cols.some((c) => c.name === 'cost')) {
+        db.exec('ALTER TABLE day_notes ADD COLUMN cost REAL');
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

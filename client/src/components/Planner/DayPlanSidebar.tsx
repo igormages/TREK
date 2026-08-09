@@ -28,7 +28,7 @@ import {
   getTransportForDay as _getTransportForDay, getMergedItems as _getMergedItems,
   type MergedItem,
 } from '../../utils/dayMerge'
-import { formatDate, formatTime, dayTotalCost, formatMoneySum, splitReservationDateTime } from '../../utils/formatters'
+import { formatDate, formatTime, dayTotalCost, formatMoney, formatMoneySum, splitReservationDateTime } from '../../utils/formatters'
 import { useDayNotes } from '../../hooks/useDayNotes'
 import { useExchangeRates } from '../../hooks/useExchangeRates'
 import { RES_ICONS, getNoteIcon } from './DayPlanSidebar.constants'
@@ -40,6 +40,7 @@ import { DayPlanSidebarTimeConfirmModal } from './DayPlanSidebarTimeConfirmModal
 import { DayPlanSidebarTransportDetailModal } from './DayPlanSidebarTransportDetailModal'
 import { TransitTitle, TransitLegChips, TransitItineraryInline } from './transitDisplay'
 import { DayPlanSidebarFooter } from './DayPlanSidebarFooter'
+import { SYMBOLS as CURRENCY_SYMBOLS } from '../Budget/BudgetPanel.constants'
 import type { Trip, Day, Place, Category, Assignment, Accommodation, Reservation, AssignmentsMap, RouteResult, RouteSegment, DayNote } from '../../types'
 import { getGoogleMapsUrlForPlace } from './placeGoogleMaps'
 
@@ -985,8 +986,15 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
       amount: Number(a.place?.price) || 0,
       currency: a.place?.currency || currency,
     })))
+    // Notes can carry their own price (transfers, entry fees) — always in the trip
+    // currency, since a note has no currency column of its own.
+    for (const d of days) {
+      for (const n of (dayNotes[String(d.id)] || [])) {
+        if (n.cost != null) entries.push({ amount: Number(n.cost) || 0, currency })
+      }
+    }
     return formatMoneySum(entries, costBase, locale, fxRates)
-  }, [days, assignments, currency, costBase, locale, fxRates])
+  }, [days, assignments, dayNotes, currency, costBase, locale, fxRates])
 
   // Bester verfügbarer Standort für Wetter: zugewiesene Orte zuerst, dann beliebiger Reiseort
   const anyGeoAssignment = Object.values(assignments).flatMap(da => da).find(a => a.place?.lat && a.place?.lng)
@@ -1151,6 +1159,12 @@ function useDayPlanSidebar(props: DayPlanSidebarProps) {
   }
 }
 
+// Worth a "show more" toggle: a title that will wrap past two lines in the ~300px
+// sidebar, or a body longer than the clamped height can hold.
+function isLongNote(note: DayNote): boolean {
+  return (note.text?.length || 0) > 70 || (note.time?.length || 0) > 140
+}
+
 const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarProps) {
   const S = useDayPlanSidebar(props)
   // A stable key for the current selection. A multi-day place renders one row per
@@ -1163,6 +1177,14 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
   // keeps its own copy, so read it reactively here in the component scope too.
   const optimizeFromAccommodation = useSettingsStore(s => s.settings.optimize_from_accommodation)
   const collectionsEnabled = useAddonStore(s => s.isEnabled('collections'))
+  // Which long notes the user has unfolded. Purely presentational, so it lives in
+  // the component rather than the hook, and resets with the panel.
+  const [expandedNotes, setExpandedNotes] = useState<Set<number>>(() => new Set())
+  const toggleNoteExpanded = (noteId: number) => setExpandedNotes(prev => {
+    const next = new Set(prev)
+    if (next.has(noteId)) next.delete(noteId); else next.add(noteId)
+    return next
+  })
   const {
     tripId,
     trip,
@@ -2273,7 +2295,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                             if (editBtns) editBtns.style.opacity = '0'
                           }}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: 8,
+                            display: 'flex', alignItems: 'flex-start', gap: 8,
                             padding: '7px 8px 7px 2px',
                             margin: '1px 8px',
                             borderRadius: 6,
@@ -2284,18 +2306,51 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                             transition: 'background 0.1s', cursor: 'grab', userSelect: 'none',
                           }}
                         >
-                          {canEditDays && !dragDisabled && <div className="dp-grip" style={{ flexShrink: 0, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', opacity: 0.3, transition: 'opacity 0.15s', cursor: 'grab' }}>
+                          {canEditDays && !dragDisabled && <div className="dp-grip" style={{ flexShrink: 0, color: 'var(--text-faint)', display: 'flex', alignItems: 'center', opacity: 0.3, transition: 'opacity 0.15s', cursor: 'grab', height: 28 }}>
                             <GripVertical size={13} strokeWidth={1.8} />
                           </div>}
                           <div style={{ width: 28, height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', background: 'var(--bg-hover)', overflow: 'hidden' }}>
                             <NoteIcon size={13} strokeWidth={1.8} color="var(--text-muted)" />
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ fontSize: 'calc(12.5px * var(--fs-scale-body, 1))', fontWeight: 500, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                          {/* Long notes are clamped: an unbounded title/body turned a
+                              day into a wall of text (the sidebar is ~300px wide). */}
+                          <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+                            <div style={{
+                              fontSize: 'calc(12.5px * var(--fs-scale-body, 1))', fontWeight: 500, color: 'var(--text-primary)',
+                              wordBreak: 'break-word', lineHeight: 1.35,
+                              ...(expandedNotes.has(note.id) ? {} : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' }),
+                            }}>
                               {note.text}
-                            </span>
+                            </div>
                             {note.time && (
-                              <div className="collab-note-md" style={{ fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', fontWeight: 400, color: 'var(--text-faint)', lineHeight: '1.3', marginTop: 2, wordBreak: 'break-word' }}><Markdown remarkPlugins={[remarkGfm]}>{note.time}</Markdown></div>
+                              <div className="collab-note-md" style={{
+                                fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', fontWeight: 400, color: 'var(--text-faint)',
+                                lineHeight: '1.4', marginTop: 3, wordBreak: 'break-word',
+                                ...(expandedNotes.has(note.id) ? {} : { maxHeight: 58, overflow: 'hidden' }),
+                              }}><Markdown remarkPlugins={[remarkGfm]}>{note.time}</Markdown></div>
+                            )}
+                            {(note.cost != null || isLongNote(note)) && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                                {note.cost != null && (
+                                  <span style={{
+                                    display: 'inline-flex', alignItems: 'center',
+                                    padding: '2px 7px', borderRadius: 6,
+                                    fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', fontWeight: 600,
+                                    background: 'var(--bg-tertiary)', color: 'var(--text-secondary)',
+                                  }}>
+                                    {formatMoney(note.cost, currency, locale)}
+                                  </span>
+                                )}
+                                {isLongNote(note) && (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); toggleNoteExpanded(note.id) }}
+                                    className="text-content-muted"
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 'calc(10.5px * var(--fs-scale-caption, 1))', fontWeight: 600, textDecoration: 'underline' }}
+                                  >
+                                    {expandedNotes.has(note.id) ? t('dayplan.noteShowLess') : t('dayplan.noteShowMore')}
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                           {canEditDays && <div className="note-edit-buttons" style={{ display: 'flex', gap: 1, flexShrink: 0, opacity: 0, transition: 'opacity 0.15s' }}>
@@ -2488,6 +2543,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
         noteInputRef={noteInputRef}
         cancelNote={cancelNote}
         saveNote={saveNote}
+        currencySymbol={CURRENCY_SYMBOLS[currency] || currency}
         t={t}
       />
 

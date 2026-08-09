@@ -15,12 +15,12 @@ import { DayNotesService } from './day-notes.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
-type DayNoteBody = { text?: string; time?: string; icon?: string; sort_order?: number };
+type DayNoteBody = { text?: string; time?: string; icon?: string; cost?: number | null; sort_order?: number };
 
-// Runs BEFORE the trip-access check, so an over-long field 400s first. The `time`
-// cap matches the shared dayNote schema (max 250) and the note dialog's counter;
-// it was 150 here, which rejected valid 151–250 char notes with a confusing error.
-const MAX_LENGTHS: Record<string, number> = { text: 500, time: 250 };
+// Runs BEFORE the trip-access check, so an over-long field 400s first. The caps
+// match the shared dayNote schema and the note dialog's counter. `time` holds the
+// note body (markdown), so it is sized for a paragraph, not a clock time.
+const MAX_LENGTHS: Record<string, number> = { text: 500, time: 4000 };
 
 function validateLengths(body: Record<string, unknown>): void {
   for (const [field, max] of Object.entries(MAX_LENGTHS)) {
@@ -82,7 +82,7 @@ export class DayNotesController {
     if (!body.text?.trim()) {
       throw new HttpException({ error: 'Text required' }, 400);
     }
-    const note = this.notes.create(dayId, tripId, body.text, body.time, body.icon, body.sort_order);
+    const note = this.notes.create(dayId, tripId, body.text, body.time, body.icon, body.sort_order, body.cost);
     this.notes.broadcast(tripId, 'dayNote:created', { dayId: Number(dayId), note }, socketId);
     return { note };
   }
@@ -103,7 +103,7 @@ export class DayNotesController {
     if (!current) {
       throw new HttpException({ error: 'Note not found' }, 404);
     }
-    const note = this.notes.update(id, current as never, { text: body.text, time: body.time, icon: body.icon, sort_order: body.sort_order });
+    const note = this.notes.update(id, current as never, { text: body.text, time: body.time, icon: body.icon, cost: body.cost, sort_order: body.sort_order });
     this.notes.broadcast(tripId, 'dayNote:updated', { dayId: Number(dayId), note }, socketId);
     return { note };
   }

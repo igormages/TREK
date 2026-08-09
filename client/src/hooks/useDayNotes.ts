@@ -10,6 +10,9 @@ interface NoteUiState {
   text: string
   time: string
   icon: string
+  // Empty/absent = no cost. Kept as text while editing so a half-typed "12." does
+  // not collapse to NaN under the user's fingers.
+  cost?: string
   sortOrder?: number
 }
 
@@ -28,13 +31,13 @@ export function useDayNotes(tripId: number | string) {
   const openAddNote = (dayId: number, getMergedItems: (dayId: number) => MergedItem[], expandDay?: (dayId: number) => void) => {
     const merged = getMergedItems(dayId)
     const maxKey = merged.length > 0 ? Math.max(...merged.map((i) => i.sortKey)) : -1
-    setNoteUi((prev) => ({ ...prev, [dayId]: { mode: 'add', text: '', time: '', icon: 'FileText', sortOrder: maxKey + 1 } }))
+    setNoteUi((prev) => ({ ...prev, [dayId]: { mode: 'add', text: '', time: '', icon: 'FileText', cost: '', sortOrder: maxKey + 1 } }))
     expandDay?.(dayId)
     setTimeout(() => noteInputRef.current?.focus(), 50)
   }
 
   const openEditNote = (dayId: number, note: DayNote) => {
-    setNoteUi((prev) => ({ ...prev, [dayId]: { mode: 'edit', noteId: note.id, text: note.text, time: note.time || '', icon: note.icon || 'FileText' } }))
+    setNoteUi((prev) => ({ ...prev, [dayId]: { mode: 'edit', noteId: note.id, text: note.text, time: note.time || '', icon: note.icon || 'FileText', cost: note.cost != null ? String(note.cost) : '' } }))
     setTimeout(() => noteInputRef.current?.focus(), 50)
   }
 
@@ -45,11 +48,15 @@ export function useDayNotes(tripId: number | string) {
   const saveNote = async (dayId: number) => {
     const ui = noteUi[dayId]
     if (!ui?.text?.trim()) return
+    // A blank cost field clears the note's price; anything unparseable is ignored
+    // rather than saved as NaN.
+    const parsed = Number(String(ui.cost ?? '').replace(',', '.').trim())
+    const cost = String(ui.cost ?? '').trim() === '' ? null : (Number.isFinite(parsed) ? parsed : null)
     try {
       if (ui.mode === 'add') {
-        await tripStore.addDayNote(tripId, dayId, { text: ui.text.trim(), time: ui.time || null, icon: ui.icon || 'FileText', sort_order: ui.sortOrder })
+        await tripStore.addDayNote(tripId, dayId, { text: ui.text.trim(), time: ui.time || null, icon: ui.icon || 'FileText', cost, sort_order: ui.sortOrder })
       } else {
-        await tripStore.updateDayNote(tripId, dayId, ui.noteId!, { text: ui.text.trim(), time: ui.time || null, icon: ui.icon || 'FileText' })
+        await tripStore.updateDayNote(tripId, dayId, ui.noteId!, { text: ui.text.trim(), time: ui.time || null, icon: ui.icon || 'FileText', cost })
       }
       cancelNote(dayId)
     } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) }
