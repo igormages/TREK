@@ -43,6 +43,7 @@ export interface BudgetCountryBreakdown {
 interface DayRow {
   id: number;
   date: string | null;
+  title: string | null;
 }
 
 interface AssignmentPlaceRow extends Place {
@@ -102,9 +103,45 @@ function carryForward(codes: (string | null)[]): (string | null)[] {
   return out;
 }
 
+/**
+ * ISO code from a flag emoji anywhere in a day title ("🇯🇵 Tokyo — …" -> "JP").
+ * A flag is a pair of regional-indicator code points, each 0x1F1E6 above 'A'.
+ */
+export function countryFromTitleFlag(title: string | null | undefined): string | null {
+  if (!title) return null;
+  const points = [...title].map((c) => c.codePointAt(0) ?? 0);
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (a >= 0x1f1e6 && a <= 0x1f1ff && b >= 0x1f1e6 && b <= 0x1f1ff) {
+      return String.fromCharCode(a - 0x1f1e6 + 65, b - 0x1f1e6 + 65);
+    }
+  }
+  return null;
+}
+
+/**
+ * The place name a day title leads with, after its flag and before the first
+ * dash: "🇯🇵 Tokyo — arrivée à Narita" -> "Tokyo". Only trusted as a city when
+ * the title also carries a flag, so free-form titles never invent one.
+ */
+export function cityFromTitle(title: string | null | undefined): string | null {
+  if (!title) return null;
+  const withoutFlag = title.replace(/[\u{1F1E6}-\u{1F1FF}]{2}/gu, ' ');
+  const head = withoutFlag.split(/[—–\-:(]/)[0];
+  // Drop any remaining emoji/pictographs so "Tokyo 🌸" stays "Tokyo". The
+  // variation selector is stripped on its own pass: combining it with the
+  // pictograph ranges in one character class is a misleading-class lint error.
+  const cleaned = head
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/\u{FE0F}/gu, '')
+    .trim();
+  return cleaned.length > 0 && cleaned.length <= 60 ? cleaned : null;
+}
+
 export function getTripCountryBreakdown(tripId: string | number): BudgetCountryBreakdown {
   const days = db
-    .prepare('SELECT id, date FROM days WHERE trip_id = ? ORDER BY day_number ASC')
+    .prepare('SELECT id, date, title FROM days WHERE trip_id = ? ORDER BY day_number ASC')
     .all(tripId) as DayRow[];
 
   const assignmentPlaces = db
@@ -152,30 +189,44 @@ export function getTripCountryBreakdown(tripId: string | number): BudgetCountryB
 
   // City of the day: the first geolocated place with a known city, in itinerary
   // order — the day's starting point, which is where its expenses are incurred.
-  const cityByDayId = new Map<number, string>();
+  const cityByPlaces = new Map<number, string>();
   for (const place of assignmentPlaces) {
-    if (cityByDayId.has(place.day_id)) continue;
+    if (cityByPlaces.has(place.day_id)) continue;
     const city = placeCity.get(place.id);
-    if (city) cityByDayId.set(place.day_id, city);
+    if (city) cityByPlaces.set(place.day_id, city);
   }
 
-  const rawDayCodes = days.map((d) => dominantCountry(placesByDay.get(d.id) || []));
+  // A day title's flag is the trip author's own statement of where that day is,
+  // and it beats everything else: long legs often have days with nothing assigned
+  // yet (66 of 176 here), and carrying the previous country across them put Japan
+  // days in Laos. Geolocated places only speak for days with no flag.
+  const rawDayCodes = days.map(
+    (d) => countryFromTitleFlag(d.title) || dominantCountry(placesByDay.get(d.id) || []),
+  );
   const dayCodes = carryForward(rawDayCodes);
 
   const dateByDayId = new Map<number, string>();
   const countryByDayId = new Map<number, string>();
+  const cityByDayId = new Map<number, string>();
   const countryByDate = new Map<string, string>();
   const cityByDate = new Map<string, string>();
   const daysPerCountry = new Map<string, number>();
   days.forEach((day, i) => {
     const code = dayCodes[i];
-    if (!code) return;
-    countryByDayId.set(day.id, code);
     const dateKey = toDateKey(day.date);
     if (dateKey) dateByDayId.set(day.id, dateKey);
+    if (!code) return;
+    countryByDayId.set(day.id, code);
+
+    // Keep the city consistent with where the country came from: a title that
+    // says Japan must not be paired with the previous leg's geocoded city.
+    const fromTitle = countryFromTitleFlag(day.title) === code ? cityFromTitle(day.title) : null;
+    const fromPlaces = dominantCountry(placesByDay.get(day.id) || []) === code ? cityByPlaces.get(day.id) : undefined;
+    const city = fromTitle || fromPlaces || null;
+    if (city) cityByDayId.set(day.id, city);
+
     if (dateKey) {
       countryByDate.set(dateKey, code);
-      const city = cityByDayId.get(day.id);
       if (city) cityByDate.set(dateKey, city);
     }
     daysPerCountry.set(code, (daysPerCountry.get(code) || 0) + 1);
