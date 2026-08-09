@@ -8,6 +8,7 @@ export interface VacayPlan {
   id: number;
   owner_id: number;
   block_weekends: number;
+  weekend_days: string | null;
   holidays_enabled: number;
   holidays_region: string | null;
   company_holidays_enabled: number;
@@ -251,7 +252,7 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
       const yr = years[i].year;
       const nextYr = years[i + 1].year;
       for (const u of users) {
-        const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${yr}-%`) as { count: number }).count;
+        const used = countUsedDays(planId, u.id, yr);
         const config = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, yr) as VacayUserYear | undefined;
         const total = (config ? config.vacation_days : 30) + (config ? config.carried_over : 0);
         const carry = Math.max(0, total - used);
@@ -505,7 +506,7 @@ export function addYear(planId: number, year: number, socketId: string | undefin
       if (carryOverEnabled) {
         const prevConfig = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, year - 1) as VacayUserYear | undefined;
         if (prevConfig) {
-          const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${year - 1}-%`) as { count: number }).count;
+          const used = countUsedDays(planId, u.id, year - 1);
           const total = prevConfig.vacation_days + prevConfig.carried_over;
           carriedOver = Math.max(0, total - used);
         }
@@ -536,7 +537,7 @@ export function deleteYear(planId: number, year: number, socketId: string | unde
       if (carryOverEnabled && prevYear) {
         const prevConfig = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, prevYear.year) as VacayUserYear | undefined;
         if (prevConfig) {
-          const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${prevYear.year}-%`) as { count: number }).count;
+          const used = countUsedDays(planId, u.id, prevYear.year);
           const total = prevConfig.vacation_days + prevConfig.carried_over;
           carry = Math.max(0, total - used);
         }
@@ -593,6 +594,59 @@ export function toggleCompanyHoliday(planId: number, date: string, note: string 
 }
 
 // ---------------------------------------------------------------------------
+// Leave-day counting
+// ---------------------------------------------------------------------------
+//
+// A marked day is not automatically a day of leave. Weekends and company
+// holidays can be marked on the calendar — they show the absence, they are part
+// of the trip — but they cost nothing from the allowance, so counting the raw
+// vacay_entries rows overstated `used` (and, through carry-over, understated the
+// following year's balance). Every place that derives a balance goes through
+// here so the calendar and the carry-over can never disagree.
+
+/** JS day numbers (0=Sunday) the plan treats as weekend; defaults to Sat/Sun. */
+function weekendDaysOf(plan: VacayPlan | undefined): Set<number> {
+  const raw = plan?.weekend_days;
+  const parsed = (raw ? String(raw).split(',') : ['0', '6'])
+    .map((d) => Number(d.trim()))
+    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  return new Set(parsed.length > 0 ? parsed : [0, 6]);
+}
+
+function isWeekendDate(date: string, weekendDays: Set<number>): boolean {
+  // Parsed as UTC so the server's own zone can never shift a Saturday into Friday.
+  const d = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && weekendDays.has(d.getUTCDay());
+}
+
+/**
+ * Days actually deducted from a user's allowance for `year`: marked entries,
+ * minus those falling on a weekend or on a company holiday.
+ */
+export function countUsedDays(planId: number, userId: number, year: number): number {
+  const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+  const entries = db
+    .prepare('SELECT date FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?')
+    .all(userId, planId, `${year}-%`) as { date: string }[];
+
+  const weekendDays = weekendDaysOf(plan);
+  // Company holidays only stop counting while the plan actually uses them; with
+  // the option off they are ordinary days again.
+  const holidayDates =
+    !plan || plan.company_holidays_enabled
+      ? new Set(
+          (
+            db
+              .prepare('SELECT date FROM vacay_company_holidays WHERE plan_id = ? AND date LIKE ?')
+              .all(planId, `${year}-%`) as { date: string }[]
+          ).map((h) => h.date),
+        )
+      : new Set<string>();
+
+  return entries.filter((e) => !isWeekendDate(e.date, weekendDays) && !holidayDates.has(e.date)).length;
+}
+
+// ---------------------------------------------------------------------------
 // Stats
 // ---------------------------------------------------------------------------
 
@@ -602,7 +656,7 @@ export function getStats(planId: number, year: number) {
   const users = getPlanUsers(planId);
 
   return users.map(u => {
-    const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${year}-%`) as { count: number }).count;
+    const used = countUsedDays(planId, u.id, year);
     const config = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, year) as VacayUserYear | undefined;
     const vacationDays = config ? config.vacation_days : 30;
     const carriedOver = carryOverEnabled ? (config ? config.carried_over : 0) : 0;

@@ -61,9 +61,11 @@ export default function VacayCalendar() {
       return
     }
     if (blockWeekends && isWeekend(dateStr, weekendDays)) return
-    if (companyHolidaysEnabled && companyHolidaySet.has(dateStr)) return
+    // A company holiday can be marked like any other day — it shows the absence on
+    // the calendar. It simply costs nothing from the allowance (the server excludes
+    // weekends and company holidays when counting used days).
     await toggleEntry(dateStr, selectedUserId || undefined)
-  }, [companyMode, toggleEntry, toggleCompanyHoliday, companyHolidaySet, blockWeekends, companyHolidaysEnabled, selectedUserId])
+  }, [companyMode, toggleEntry, toggleCompanyHoliday, blockWeekends, companyHolidaysEnabled, selectedUserId])
 
   const selectedUser = users.find(u => u.id === selectedUserId)
 
