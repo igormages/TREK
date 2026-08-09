@@ -138,10 +138,23 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   const [settlement, setSettlement] = useState<SettlementData | null>(null)
   const [filter, setFilter] = useState<'all' | 'mine' | 'owed'>('all')
   // Everything about splitting — who owes whom, settle-up, per-payer filters, the
-  // "unfinished" (no payer) flag — only means something when several people share
-  // the trip. On a solo or family trip it is pure noise: every expense reads as
-  // "unfinished" and the balances are all zero.
-  const isShared = tripMembers.length > 1
+  // "unfinished" (no payer) flag — only means something once someone has actually
+  // said who paid for something.
+  //
+  // Having several members is NOT the test: a family travels on several accounts
+  // and still shares one wallet. On such a trip every expense reads "unfinished"
+  // for want of a payer, every balance is zero, and "95 dépenses sans payeur" is
+  // a reproach rather than information.
+  //
+  // So the split UI appears when the trip is actually being split — one expense
+  // with a payer, or one recorded payment, is enough to bring it all back.
+  const isShared = useMemo(
+    () =>
+      tripMembers.length > 1 &&
+      (budgetItems.some(e => (e.payers || []).some(p => p.amount > 0)) ||
+        (settlement?.settlements || []).length > 0),
+    [tripMembers.length, budgetItems, settlement],
+  )
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState('')   // '' = all categories
   const [dayFilter, setDayFilter] = useState('')   // '' = all days, else YYYY-MM-DD

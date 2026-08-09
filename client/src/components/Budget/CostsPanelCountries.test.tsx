@@ -143,12 +143,19 @@ describe('CostsPanel — country and month breakdowns', () => {
     })
   })
 
-  it('hides the who-owes-whom UI on a trip with a single member', async () => {
+  it('hides the who-owes-whom UI while no expense has a payer', async () => {
     mockApis()
-    // A family trip has one account: balances are all zero, every expense reads
-    // as "unfinished" for want of a payer, and the per-payer filters filter
-    // nothing. None of it should be shown.
-    const { container } = render(<CostsPanel tripId={1} tripMembers={[{ id: 1, username: 'alice', avatar_url: null }]} />)
+    // A family travels on several accounts out of one wallet: balances are all
+    // zero, every expense reads as "unfinished" for want of a payer, and the
+    // per-payer filters filter nothing. Several members is NOT the test — three
+    // of them here, and none of it should be shown.
+    const { container } = render(
+      <CostsPanel tripId={1} tripMembers={[
+        { id: 1, username: 'alice', avatar_url: null },
+        { id: 2, username: 'bob', avatar_url: null },
+        { id: 3, username: 'carol', avatar_url: null },
+      ]} />
+    )
 
     await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
     const text = container.textContent || ''
@@ -161,8 +168,14 @@ describe('CostsPanel — country and month breakdowns', () => {
     expect(text).toContain('Hotel Seoul')
   })
 
-  it('keeps the who-owes-whom UI on a shared trip', async () => {
-    mockApis()
+  it('brings the who-owes-whom UI back as soon as one expense has a payer', async () => {
+    server.use(
+      http.get('/api/trips/1/budget', () => HttpResponse.json({
+        items: ITEMS.map((i, idx) => (idx === 0 ? { ...i, payers: [{ user_id: 2, amount: 600 }] } : i)),
+      })),
+      http.get('/api/trips/1/budget/countries', () => HttpResponse.json(BREAKDOWN)),
+      http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({ balances: [], flows: [], settlements: [] })),
+    )
     const { container } = render(
       <CostsPanel tripId={1} tripMembers={[
         { id: 1, username: 'alice', avatar_url: null },
@@ -172,6 +185,24 @@ describe('CostsPanel — country and month breakdowns', () => {
 
     await waitFor(() => expect(container.textContent).toContain('Hotel Tokyo'))
     expect(container.textContent).toContain('Balances')
+  })
+
+  it('brings it back on a recorded payment even with no payer on any expense', async () => {
+    server.use(
+      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: ITEMS })),
+      http.get('/api/trips/1/budget/countries', () => HttpResponse.json(BREAKDOWN)),
+      http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({
+        balances: [], flows: [], settlements: [{ id: 1, from_user_id: 1, to_user_id: 2, amount: 50 }],
+      })),
+    )
+    const { container } = render(
+      <CostsPanel tripId={1} tripMembers={[
+        { id: 1, username: 'alice', avatar_url: null },
+        { id: 2, username: 'bob', avatar_url: null },
+      ]} />
+    )
+
+    await waitFor(() => expect(container.textContent).toContain('Balances'))
   })
 
   it('hides the country breakdowns entirely when the endpoint fails', async () => {

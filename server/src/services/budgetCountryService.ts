@@ -139,6 +139,84 @@ export function cityFromTitle(title: string | null | undefined): string | null {
   return cleaned.length > 0 && cleaned.length <= 60 ? cleaned : null;
 }
 
+/** Where one day of the itinerary is spent, once every rule has been applied. */
+export interface DayCountry {
+  day_id: number;
+  /** YYYY-MM-DD, or null for a day with no date. */
+  date: string | null;
+  country_code: string | null;
+  city: string | null;
+}
+
+/**
+ * The per-day attribution on its own — the same resolution the expense
+ * breakdown is built on (day-title flag first, then the day's geolocated
+ * places, then carry-forward over the gaps), without needing a single expense
+ * to exist.
+ *
+ * Anything that reasons about "which country is this day in" reads this, so the
+ * charts, the ledger badges and the generated daily budget can never disagree.
+ */
+export function getTripDayCountries(tripId: string | number): DayCountry[] {
+  const days = db
+    .prepare('SELECT id, date, title FROM days WHERE trip_id = ? ORDER BY day_number ASC')
+    .all(tripId) as DayRow[];
+
+  const assignmentPlaces = db
+    .prepare(
+      `SELECT p.*, da.day_id AS day_id
+         FROM day_assignments da
+         JOIN places p ON p.id = da.place_id
+         JOIN days d ON d.id = da.day_id
+        WHERE d.trip_id = ?
+        ORDER BY da.day_id, da.order_index`,
+    )
+    .all(tripId) as AssignmentPlaceRow[];
+
+  const placeCountry = resolvePlaceCountries(assignmentPlaces);
+  const placeCity = ensurePlaceCities(assignmentPlaces);
+
+  const placesByDay = new Map<number, string[]>();
+  for (const place of assignmentPlaces) {
+    const code = placeCountry.get(place.id);
+    if (!code) continue;
+    const list = placesByDay.get(place.day_id);
+    if (list) list.push(code);
+    else placesByDay.set(place.day_id, [code]);
+  }
+
+  const cityByPlaces = new Map<number, string>();
+  for (const place of assignmentPlaces) {
+    if (cityByPlaces.has(place.day_id)) continue;
+    const city = placeCity.get(place.id);
+    if (city) cityByPlaces.set(place.day_id, city);
+  }
+
+  // A day title's flag is the trip author's own statement of where that day is,
+  // and it beats everything else: long legs often have days with nothing assigned
+  // yet (66 of 176 here), and carrying the previous country across them put Japan
+  // days in Laos. Geolocated places only speak for days with no flag.
+  const rawDayCodes = days.map(
+    (d) => countryFromTitleFlag(d.title) || dominantCountry(placesByDay.get(d.id) || []),
+  );
+  const dayCodes = carryForward(rawDayCodes);
+
+  return days.map((day, i) => {
+    const code = dayCodes[i];
+    // Keep the city consistent with where the country came from: a title that
+    // says Japan must not be paired with the previous leg's geocoded city.
+    const fromTitle = countryFromTitleFlag(day.title) === code ? cityFromTitle(day.title) : null;
+    const fromPlaces =
+      dominantCountry(placesByDay.get(day.id) || []) === code ? cityByPlaces.get(day.id) : undefined;
+    return {
+      day_id: day.id,
+      date: toDateKey(day.date),
+      country_code: code,
+      city: code ? fromTitle || fromPlaces || null : null,
+    };
+  });
+}
+
 export function getTripCountryBreakdown(tripId: string | number): BudgetCountryBreakdown {
   const days = db
     .prepare('SELECT id, date, title FROM days WHERE trip_id = ? ORDER BY day_number ASC')

@@ -14,6 +14,16 @@ const tripMembers = [
   { id: 2, username: 'bob', avatar_url: null },
 ]
 
+// An expense someone has actually paid for. The who-owes-whom UI appears only
+// once a trip is genuinely being split — a family on several accounts sharing
+// one wallet gets none of it — so a settlement test has to start from a split trip.
+const SPLIT_ITEM = {
+  ...buildBudgetItem({ id: 900, trip_id: 1, category: 'food', name: 'Shared lunch' }),
+  total_price: 40,
+  expense_date: '2025-06-14',
+  payers: [{ user_id: 2, amount: 40 }],
+}
+
 beforeEach(() => {
   resetAllStores()
   seedStore(useAuthStore, { user: buildUser(), isAuthenticated: true })
@@ -47,7 +57,9 @@ describe('CostsPanel — settlements in the ledger', () => {
   it('records a manual payment via the Add payment button', async () => {
     let posted: Record<string, unknown> | null = null
     server.use(
-      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [] })),
+      // One expense with a payer: the split UI only exists on a trip that is
+      // actually being split, and recording a payment is part of that UI.
+      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [SPLIT_ITEM] })),
       http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({ balances: [], flows: [], settlements: [] })),
       http.post('/api/trips/1/budget/settlements', async ({ request }) => {
         posted = await request.json() as Record<string, unknown>
@@ -157,7 +169,9 @@ describe('CostsPanel — settlements in the ledger', () => {
   it('marks an expense with no payer as Unfinished', async () => {
     const item = { ...buildBudgetItem({ trip_id: 1, category: 'food', name: 'Hotel' }), total_price: 90, payers: [], members: [{ user_id: 1, username: 'alice', paid: 0 }] }
     server.use(
-      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [item] })),
+      // Alongside one expense that DOES have a payer: "no payer" is only worth
+      // flagging on a trip where payers are being recorded at all.
+      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [item, SPLIT_ITEM] })),
       http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({ balances: [], flows: [], settlements: [] })),
     )
     render(<CostsPanel tripId={1} tripMembers={tripMembers} />)
@@ -493,7 +507,9 @@ describe('CostsPanel — settlements in the ledger', () => {
     seedStore(useSettingsStore, { settings: { ...useSettingsStore.getState().settings, default_currency: 'EUR' } })
     let posted: Record<string, unknown> | null = null
     server.use(
-      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [] })),
+      // One expense with a payer: the split UI only exists on a trip that is
+      // actually being split, and recording a payment is part of that UI.
+      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [SPLIT_ITEM] })),
       http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({ balances: [], flows: [], settlements: [] })),
       http.post('/api/trips/1/budget/settlements', async ({ request }) => {
         posted = await request.json() as Record<string, unknown>
@@ -516,7 +532,9 @@ describe('CostsPanel — settlements in the ledger', () => {
     seedStore(useSettingsStore, { settings: { ...useSettingsStore.getState().settings, default_currency: 'EUR' } })
     let posted: Record<string, unknown> | null = null
     server.use(
-      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [] })),
+      // One expense with a payer: the split UI only exists on a trip that is
+      // actually being split, and recording a payment is part of that UI.
+      http.get('/api/trips/1/budget', () => HttpResponse.json({ items: [SPLIT_ITEM] })),
       http.get('/api/trips/1/budget/settlement', () => HttpResponse.json({ balances: [], flows: [], settlements: [] })),
       http.post('/api/trips/1/budget/settlements', async ({ request }) => {
         posted = await request.json() as Record<string, unknown>

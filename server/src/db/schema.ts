@@ -260,6 +260,7 @@ function createTables(db: Database.Database): void {
       days INTEGER DEFAULT NULL,
       note TEXT,
       sort_order INTEGER DEFAULT 0,
+      plan_key TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
