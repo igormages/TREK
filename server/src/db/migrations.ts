@@ -3778,6 +3778,18 @@ function runMigrations(db: Database.Database): void {
         db.exec('ALTER TABLE users ADD COLUMN birth_date TEXT');
       }
     },
+    () => {
+      // Marks an expense as generated from the itinerary (meals, local transport,
+      // activities) rather than entered by hand, e.g. "daily:2027-03-02:lunch".
+      // Regenerating a trip's daily plan deletes its own previous output and
+      // leaves everything else alone, which is only possible if the two can be
+      // told apart.
+      const cols = db.prepare('PRAGMA table_info(budget_items)').all() as { name: string }[];
+      if (!cols.some((c) => c.name === 'plan_key')) {
+        db.exec('ALTER TABLE budget_items ADD COLUMN plan_key TEXT');
+        db.exec('CREATE INDEX IF NOT EXISTS idx_budget_items_plan ON budget_items(trip_id, plan_key)');
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {
