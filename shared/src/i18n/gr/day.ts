@@ -22,5 +22,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Επιβεβαίωση',
   'day.editAccommodation': 'Επεξεργασία διαμονής',
   'day.reservations': 'Κρατήσεις',
+  'day.workOverlap': 'Επικάλυψη ωρών εργασίας',
+  'day.workOverlapHint': '{homeRange} στο σπίτι = {localRange} τοπική ώρα',
+  'day.workOverlapNone': 'Καμία επικάλυψη με τις τοπικές ώρες εγρήγορσης (08-23)',
 };
 export default day;

@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Onay kodu',
   'day.editAccommodation': 'Konaklamayı düzenle',
   'day.reservations': 'Rezervasyonlar',
+  'day.workOverlap': 'Çalışma saatleri çakışması',
+  'day.workOverlapHint': 'Evde {homeRange} = yerel saatle {localRange}',
+  'day.workOverlapNone': 'Yerel uyanık saatlerle (08-23) çakışma yok',
 };
 export default day;

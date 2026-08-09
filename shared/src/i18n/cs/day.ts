@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Potvrzení',
   'day.editAccommodation': 'Upravit ubytování',
   'day.reservations': 'Rezervace',
+  'day.workOverlap': 'Překryv pracovní doby',
+  'day.workOverlapHint': '{homeRange} doma = {localRange} místního času',
+  'day.workOverlapNone': 'Žádný překryv s místními hodinami bdění (08-23)',
 };
 export default day;

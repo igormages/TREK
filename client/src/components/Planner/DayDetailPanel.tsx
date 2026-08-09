@@ -18,6 +18,7 @@ import type { Day, Place, Category, Reservation, AssignmentsMap } from '../../ty
 import { isDayInAccommodationRange } from '../../utils/dayOrder'
 import { splitReservationDateTime } from '../../utils/formatters'
 import { useDayDetail } from './useDayDetail'
+import WorkOverlapStrip from './WorkOverlapStrip'
 
 const WEATHER_ICON_MAP = {
   Clear: Sun, Clouds: Cloud, Rain: CloudRain, Drizzle: CloudDrizzle,
@@ -280,6 +281,11 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
             ) : (
               <div style={{ fontSize: 'calc(12px * var(--fs-scale-body, 1))', color: 'var(--text-faint)', textAlign: 'center', padding: 8 }}>{t('day.noWeather')}</div>
             )
+          )}
+
+          {/* ── Local hours available for meetings with home (work-hours overlap) ── */}
+          {day.date && lat && lng && (
+            <WorkOverlapStrip dateStr={day.date} lat={lat} lng={lng} />
           )}
 
           {/* ── Reservations for this day's assignments ── */}

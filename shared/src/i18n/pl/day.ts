@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Potwierdzenie',
   'day.editAccommodation': 'Edytuj zakwaterowanie',
   'day.reservations': 'Rezerwacje',
+  'day.workOverlap': 'Nakładanie się godzin pracy',
+  'day.workOverlapHint': '{homeRange} w domu = {localRange} czasu lokalnego',
+  'day.workOverlapNone': 'Brak nakładania się z lokalnymi godzinami czuwania (08-23)',
 };
 export default day;

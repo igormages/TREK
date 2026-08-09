@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': '확인',
   'day.editAccommodation': '숙박 편집',
   'day.reservations': '예약',
+  'day.workOverlap': '근무 시간 겹침',
+  'day.workOverlapHint': '자택 {homeRange} = 현지 시간 {localRange}',
+  'day.workOverlapNone': '현지 활동 시간(08-23)과 겹치지 않습니다',
 };
 export default day;

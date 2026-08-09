@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Visszaigazolás',
   'day.editAccommodation': 'Szállás szerkesztése',
   'day.reservations': 'Foglalások',
+  'day.workOverlap': 'Munkaidő-átfedés',
+  'day.workOverlapHint': '{homeRange} otthon = {localRange} helyi idő',
+  'day.workOverlapNone': 'Nincs átfedés a helyi ébren töltött órákkal (08-23)',
 };
 export default day;

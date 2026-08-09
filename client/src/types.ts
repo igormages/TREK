@@ -129,6 +129,10 @@ export interface Settings {
   dashboard_fx_from?: string
   dashboard_fx_to?: string
   dashboard_timezones?: string[]
+  /** Work-hours overlap strip on the day panel: home timezone + daily work window (hours, 0-23). */
+  home_timezone?: string
+  work_hours_start?: number
+  work_hours_end?: number
   // AI booking-import fallback (per-user config; used when the admin has not set
   // instance-wide config on the llm_parsing addon). llm_api_key is masked on read.
   llm_provider?: 'local' | 'openai' | 'anthropic'

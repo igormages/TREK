@@ -21,5 +21,8 @@ const day: TranslationStrings = {
   'day.confirmation': 'Confirmation',
   'day.editAccommodation': "Modifier l'hébergement",
   'day.reservations': 'Réservations',
+  'day.workOverlap': 'Créneaux réunions (heures France)',
+  'day.workOverlapHint': '{homeRange} en France = {localRange} sur place',
+  'day.workOverlapNone': 'Aucun chevauchement avec les heures éveillées locales (8h-23h)',
 };
 export default day;
