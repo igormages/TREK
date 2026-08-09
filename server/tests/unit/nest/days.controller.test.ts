@@ -126,9 +126,11 @@ describe('DayNotesController (parity with the legacy /api/.../days/:dayId/notes 
     expect(verifyTripAccess).not.toHaveBeenCalled();
   });
 
-  it('400 on an over-long time', () => {
-    expect(thrown(() => new DayNotesController(notesSvc()).create(user, '5', '3', { text: 'ok', time: 'y'.repeat(251) }))).toEqual({
-      status: 400, body: { error: 'time must be 250 characters or less' },
+  // `time` holds the note's markdown body, so it is capped at a paragraph's worth
+  // (4000) rather than the old 250 that truncated real notes.
+  it('400 on an over-long body', () => {
+    expect(thrown(() => new DayNotesController(notesSvc()).create(user, '5', '3', { text: 'ok', time: 'y'.repeat(4001) }))).toEqual({
+      status: 400, body: { error: 'time must be 4000 characters or less' },
     });
   });
 
@@ -140,7 +142,8 @@ describe('DayNotesController (parity with the legacy /api/.../days/:dayId/notes 
     const create = vi.fn().mockReturnValue({ id: 7 }); const broadcast = vi.fn();
     const svc = notesSvc({ dayExists: vi.fn().mockReturnValue(true), create, broadcast } as Partial<DayNotesService>);
     expect(new DayNotesController(svc).create(user, '5', '3', { text: 'Lunch', time: '12:00' }, 'sock')).toEqual({ note: { id: 7 } });
-    expect(create).toHaveBeenCalledWith('3', '5', 'Lunch', '12:00', undefined, undefined);
+    // trailing undefineds: icon, sort_order, cost
+    expect(create).toHaveBeenCalledWith('3', '5', 'Lunch', '12:00', undefined, undefined, undefined);
     expect(broadcast).toHaveBeenCalledWith('5', 'dayNote:created', { dayId: 3, note: { id: 7 } }, 'sock');
   });
 

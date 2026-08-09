@@ -36,11 +36,11 @@ export class DayNotesService {
     return dayNoteService.getNote(id, dayId, tripId);
   }
 
-  create(dayId: string, tripId: string, text: string, time?: string, icon?: string, sortOrder?: number) {
-    return dayNoteService.createNote(dayId, tripId, text, time, icon, sortOrder);
+  create(dayId: string, tripId: string, text: string, time?: string, icon?: string, sortOrder?: number, cost?: number | null) {
+    return dayNoteService.createNote(dayId, tripId, text, time, icon, sortOrder, cost);
   }
 
-  update(id: string, current: Parameters<typeof dayNoteService.updateNote>[1], fields: { text?: string; time?: string; icon?: string; sort_order?: number }) {
+  update(id: string, current: Parameters<typeof dayNoteService.updateNote>[1], fields: { text?: string; time?: string; icon?: string; cost?: number | null; sort_order?: number }) {
     return dayNoteService.updateNote(id, current, fields);
   }
 

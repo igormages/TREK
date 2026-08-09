@@ -206,6 +206,30 @@ describe('VacayCalendar', () => {
     expect(toggleEntry).not.toHaveBeenCalled()
   })
 
+  it('FE-COMP-VACAYCALENDAR-011: a company holiday can still be marked as leave (it just does not count)', async () => {
+    const user = userEvent.setup()
+    const toggleEntry = vi.fn().mockResolvedValue(undefined)
+
+    seedStore(useVacayStore, {
+      selectedYear: 2025,
+      entries: [],
+      // 2025-01-01 is a company holiday and the option is on.
+      companyHolidays: [{ date: '2025-01-01', note: '' }],
+      holidays: {},
+      plan: { ...basePlan, block_weekends: false, company_holidays_enabled: true },
+      users: [],
+      selectedUserId: 42,
+      toggleEntry,
+    })
+
+    render(<VacayCalendar />)
+    await user.click(screen.getByText('click-0'))
+
+    // Marking it shows the absence on the calendar; the server excludes company
+    // holidays when counting used days, so the allowance is untouched.
+    expect(toggleEntry).toHaveBeenCalledWith('2025-01-01', 42)
+  })
+
   it('FE-COMP-VACAYCALENDAR-009: company mode click blocked when company_holidays_enabled is false', async () => {
     const user = userEvent.setup()
     const toggleCompanyHoliday = vi.fn().mockResolvedValue(undefined)

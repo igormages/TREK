@@ -232,6 +232,7 @@ export interface DayNote {
   text: string;
   time?: string | null;
   icon: string;
+  cost?: number | null;
   sort_order: number;
   created_at?: string;
 }
