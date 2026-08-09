@@ -21,6 +21,8 @@ import { POI_CATEGORY_BY_KEY, type Poi } from './poiCategories'
 import { buildPoiPopupHtml } from './placePopup'
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '../../constants/mapDefaults'
 import { computeMapViewport, TILE_SIZE_GL } from '../../utils/mapViewport'
+import { accommodationKind, isLodgingCategory } from '@trek/shared'
+import { accommodationMarkerHtml } from './accommodationMarker'
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
@@ -134,6 +136,25 @@ function createMarkerElement(place: Place & { category_color?: string; category_
   }
 
   const wrap = document.createElement('div')
+
+  // Somewhere you sleep is drawn Booking-style — a pill you can read at a
+  // glance, coloured by kind — rather than as one more photo circle among the
+  // restaurants and viewpoints. Same treatment as the Leaflet engine, from the
+  // same builder, so both maps stay in step.
+  // The category name reaches the map flattened on some paths and nested on
+  // others, so read both rather than tie the marker to one of them.
+  const categoryName =
+    (place as { category_name?: string | null }).category_name ??
+    (place as { category?: { name?: string | null } | null }).category?.name ??
+    null
+  if (isLodgingCategory(place.category_icon, categoryName)) {
+    const kind = accommodationKind(categoryName, place.name) ?? 'rental'
+    const pill = accommodationMarkerHtml({ kind, isSelected: selected })
+    wrap.style.cssText = `width:${pill.width}px;height:${pill.height}px;cursor:pointer;`
+    wrap.innerHTML = `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);">${pill.html}</div>${badgeHtml}`
+    return wrap
+  }
+
   // Do NOT set `position: relative` here — GL map libraries ship
   // marker classes with `position: absolute` and rely on it. An inline
   // `position: relative` here overrides the class, turns every marker into

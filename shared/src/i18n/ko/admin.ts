@@ -76,6 +76,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': '작업',
   'admin.you': '(나)',
   'admin.editUser': '사용자 편집',
+  'admin.birthDate': '생년월일',
+  'admin.birthDateHint': '만 2세 미만은 숙소 검색 인원에 포함되지 않습니다.',
   'admin.newPassword': '새 비밀번호',
   'admin.newPasswordHint': '비워두면 현재 비밀번호 유지',
   'admin.deleteUser': '사용자 "{name}"을(를) 삭제할까요? 모든 여행이 영구 삭제됩니다.',

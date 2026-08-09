@@ -35,6 +35,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Műveletek',
   'admin.you': '(Te)',
   'admin.editUser': 'Felhasználó szerkesztése',
+  'admin.birthDate': 'Születési dátum',
+  'admin.birthDateHint': 'A két év alattiak nem számítanak bele a szálláskeresésbe.',
   'admin.newPassword': 'Új jelszó',
   'admin.newPasswordHint': 'Hagyd üresen a jelenlegi jelszó megtartásához',
   'admin.deleteUser': '"{name}" felhasználó törlése? Minden utazás véglegesen törlődik.',

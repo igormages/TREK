@@ -77,6 +77,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Actions',
   'admin.you': '(You)',
   'admin.editUser': 'Edit User',
+  'admin.birthDate': 'Birth date',
+  'admin.birthDateHint': 'Under-twos are not counted as guests in accommodation searches.',
   'admin.newPassword': 'New Password',
   'admin.newPasswordHint': 'Leave empty to keep current password',
   'admin.deleteUser': 'Delete user "{name}"? All trips will be permanently deleted.',

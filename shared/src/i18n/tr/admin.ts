@@ -78,6 +78,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'İşlemler',
   'admin.you': '(Siz)',
   'admin.editUser': 'Kullanıcıyı Düzenle',
+  'admin.birthDate': 'Doğum tarihi',
+  'admin.birthDateHint': 'İki yaşından küçükler konaklama aramalarında sayılmaz.',
   'admin.newPassword': 'Yeni Şifre',
   'admin.newPasswordHint': 'Mevcut şifreyi korumak için boş bırakın',
   'admin.deleteUser': '"{name}" kullanıcısı silinsin mi? Tüm geziler kalıcı olarak silinecek.',

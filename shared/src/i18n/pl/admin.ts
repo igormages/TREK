@@ -26,6 +26,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Akcje',
   'admin.you': '(Ty)',
   'admin.editUser': 'Edytuj użytkownika',
+  'admin.birthDate': 'Data urodzenia',
+  'admin.birthDateHint': 'Dzieci poniżej dwóch lat nie są liczone w wyszukiwaniu noclegów.',
   'admin.newPassword': 'Nowe hasło',
   'admin.newPasswordHint': 'Pozostaw puste, aby zachować obecne hasło',
   'admin.deleteUser': 'Usunąć użytkownika "{name}"? Wszystkie jego podróże zostaną trwale usunięte.',

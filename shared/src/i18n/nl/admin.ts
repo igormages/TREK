@@ -36,6 +36,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Acties',
   'admin.you': '(Jij)',
   'admin.editUser': 'Gebruiker bewerken',
+  'admin.birthDate': 'Geboortedatum',
+  'admin.birthDateHint': 'Kinderen onder de twee tellen niet mee bij het zoeken naar accommodatie.',
   'admin.newPassword': 'Nieuw wachtwoord',
   'admin.newPasswordHint': 'Laat leeg om het huidige wachtwoord te behouden',
   'admin.deleteUser': 'Gebruiker "{name}" verwijderen? Alle reizen worden permanent verwijderd.',

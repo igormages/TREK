@@ -35,6 +35,8 @@ const admin: TranslationStrings = {
   'admin.table.actions': 'Akce',
   'admin.you': '(Vy)',
   'admin.editUser': 'Upravit uživatele',
+  'admin.birthDate': 'Datum narození',
+  'admin.birthDateHint': 'Děti do dvou let se do vyhledávání ubytování nezapočítávají.',
   'admin.newPassword': 'Nové heslo',
   'admin.newPasswordHint': 'Ponechte prázdné pro zachování současného hesla',
   'admin.deleteUser': 'Smazat uživatele „{name}“? Všechny jeho cesty budou trvale smazány.',

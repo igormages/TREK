@@ -16,6 +16,8 @@ import type { Reservation } from '../../types'
 import { POI_CATEGORY_BY_KEY, type Poi } from './poiCategories'
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '../../constants/mapDefaults'
 import { computeMapViewport, TILE_SIZE_RASTER, type ViewportPadding } from '../../utils/mapViewport'
+import { accommodationKind, isLodgingCategory } from '@trek/shared'
+import { accommodationMarkerHtml } from './accommodationMarker'
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
@@ -49,6 +51,24 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
   const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${orderNumbers?.join(',') || ''}`
   const cached = iconCache.get(cacheKey)
   if (cached) return cached
+
+  // Somewhere you sleep is drawn Booking-style — a pill you can read at a
+  // glance, coloured by kind — rather than as one more photo circle among the
+  // restaurants and viewpoints.
+  const categoryName = place.category_name ?? place.category?.name ?? null
+  if (isLodgingCategory(place.category_icon, categoryName)) {
+    const kind = accommodationKind(categoryName, place.name) ?? 'rental'
+    const { html, width, height } = accommodationMarkerHtml({ kind, isSelected })
+    const pill = L.divIcon({
+      className: '',
+      html,
+      iconSize: [width, height],
+      iconAnchor: [width / 2, height / 2],
+      tooltipAnchor: [width / 2 + 6, 0],
+    })
+    iconCache.set(cacheKey, pill)
+    return pill
+  }
   const size = isSelected ? 44 : 36
   const borderColor = isSelected ? '#111827' : (place.category_color || 'white')
   const borderWidth = isSelected ? 3 : 2.5

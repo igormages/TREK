@@ -22,6 +22,9 @@ export interface User {
   // Guest members (#1362): accountless trip participants. Flagged guests must never
   // authenticate or appear in the global user directory.
   is_guest?: number | boolean;
+  // Optional birth date (YYYY-MM-DD), admin-set. Lets an accommodation search
+  // price a room for its adult occupants only — an under-two sleeps in a cot.
+  birth_date?: string | null;
   created_at?: string;
   updated_at?: string;
 }
