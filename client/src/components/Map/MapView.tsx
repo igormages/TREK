@@ -18,6 +18,8 @@ import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '../../constants/mapDefault
 import { computeMapViewport, TILE_SIZE_RASTER, type ViewportPadding } from '../../utils/mapViewport'
 import { accommodationKind, isLodgingCategory } from '@trek/shared'
 import { accommodationMarkerHtml } from './accommodationMarker'
+import { buildPriceLabels } from './hotelPriceLabels'
+import { useTranslation } from '../../i18n'
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
@@ -47,8 +49,10 @@ function escAttr(s) {
 
 const iconCache = new Map<string, L.DivIcon>()
 
-function createPlaceIcon(place, orderNumbers, isSelected) {
-  const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${orderNumbers?.join(',') || ''}`
+function createPlaceIcon(place, orderNumbers, isSelected, priceLabel?: string | null) {
+  // The price belongs in the key: quotes arrive after the first render, and an
+  // icon cached before they land would keep the priceless circle forever.
+  const cacheKey = `${place.id}:${isSelected}:${place.image_url || ''}:${place.category_color || ''}:${place.category_icon || ''}:${orderNumbers?.join(',') || ''}:${priceLabel || ''}`
   const cached = iconCache.get(cacheKey)
   if (cached) return cached
 
@@ -58,7 +62,7 @@ function createPlaceIcon(place, orderNumbers, isSelected) {
   const categoryName = place.category_name ?? place.category?.name ?? null
   if (isLodgingCategory(place.category_icon, categoryName)) {
     const kind = accommodationKind(categoryName, place.name) ?? 'rental'
-    const { html, width, height } = accommodationMarkerHtml({ kind, isSelected })
+    const { html, width, height } = accommodationMarkerHtml({ kind, isSelected, priceLabel })
     const pill = L.divIcon({
       className: '',
       html,
@@ -435,15 +439,17 @@ interface MemoMarkerProps {
   isSelected: boolean
   orderNumbers: number[] | null
   photoUrl: string | null
+  /** Preformatted nightly rate, e.g. "86 €". Null for anything but priced lodging. */
+  priceLabel: string | null
   onClickPlace: (id: number) => void
   onHover: (place: any, x: number, y: number) => void
   onHoverOut: () => void
 }
 
 const MemoMarker = memo(function MemoMarker({
-  place, isSelected, orderNumbers, photoUrl, onClickPlace, onHover, onHoverOut,
+  place, isSelected, orderNumbers, photoUrl, priceLabel, onClickPlace, onHover, onHoverOut,
 }: MemoMarkerProps) {
-  const icon = createPlaceIcon({ ...place, image_url: photoUrl }, orderNumbers, isSelected)
+  const icon = createPlaceIcon({ ...place, image_url: photoUrl }, orderNumbers, isSelected, priceLabel)
   return (
     <Marker
       position={[place.lat, place.lng]}
@@ -487,7 +493,12 @@ export const MapView = memo(function MapView({
   onPoiClick,
   onViewportChange,
   tripId,
+  hotelPrices,
 }: any) {
+  const { language } = useTranslation()
+  // Quotes arrive after the first paint; memoised so a re-render for any other
+  // reason does not rebuild every label string.
+  const priceLabels = useMemo(() => buildPriceLabels(hotelPrices, language), [hotelPrices, language])
   const poiMarkers = useMemo(() => (pois as Poi[]).map((poi: Poi) => (
     <Marker
       key={`poi-${poi.osm_id}`}
@@ -665,12 +676,13 @@ export const MapView = memo(function MapView({
         isSelected={isSelected}
         orderNumbers={orderNumbers}
         photoUrl={photoUrl}
+        priceLabel={priceLabels[place.id] ?? null}
         onClickPlace={handleMarkerClick}
         onHover={handleMarkerHover}
         onHoverOut={handleMarkerHoverOut}
       />
     )
-  }), [places, selectedPlaceId, dayOrderMap, photoUrls, handleMarkerClick, handleMarkerHover, handleMarkerHoverOut])
+  }), [places, selectedPlaceId, dayOrderMap, photoUrls, priceLabels, handleMarkerClick, handleMarkerHover, handleMarkerHoverOut])
 
   const gpxPolylines = useMemo(() => places.flatMap(place => {
     if (!place.route_geometry) return []

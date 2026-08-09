@@ -23,6 +23,9 @@ import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM } from '../../constants/mapDefault
 import { computeMapViewport, TILE_SIZE_GL } from '../../utils/mapViewport'
 import { accommodationKind, isLodgingCategory } from '@trek/shared'
 import { accommodationMarkerHtml } from './accommodationMarker'
+import { buildPriceLabels } from './hotelPriceLabels'
+import { useTranslation } from '../../i18n'
+import type { HotelPrice } from '@trek/shared'
 
 function categoryIconSvg(iconName: string | null | undefined, size: number): string {
   const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
@@ -100,9 +103,11 @@ interface Props {
   glProvider?: GlMapProvider
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onMapReady?: (map: any | null) => void
+  /** Hotellook quotes, keyed by the lodging place they price. */
+  hotelPrices?: Record<number, HotelPrice>
 }
 
-function createMarkerElement(place: Place & { category_color?: string; category_icon?: string }, photoUrl: string | null, orderNumbers: number[] | null, selected: boolean): HTMLDivElement {
+function createMarkerElement(place: Place & { category_color?: string; category_icon?: string }, photoUrl: string | null, orderNumbers: number[] | null, selected: boolean, priceLabel: string | null = null): HTMLDivElement {
   const size = selected ? 44 : 36
   const borderColor = selected ? '#111827' : (place.category_color || 'white')
   const borderWidth = selected ? 3 : 2.5
@@ -149,7 +154,7 @@ function createMarkerElement(place: Place & { category_color?: string; category_
     null
   if (isLodgingCategory(place.category_icon, categoryName)) {
     const kind = accommodationKind(categoryName, place.name) ?? 'rental'
-    const pill = accommodationMarkerHtml({ kind, isSelected: selected })
+    const pill = accommodationMarkerHtml({ kind, isSelected: selected, priceLabel })
     wrap.style.cssText = `width:${pill.width}px;height:${pill.height}px;cursor:pointer;`
     wrap.innerHTML = `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);">${pill.html}</div>${badgeHtml}`
     return wrap
@@ -237,7 +242,15 @@ export function MapViewGL({
   onViewportChange,
   glProvider = 'mapbox-gl',
   onMapReady,
+  hotelPrices,
 }: Props) {
+  const { language: priceLocale } = useTranslation()
+  const priceLabels = useMemo(() => buildPriceLabels(hotelPrices, priceLocale), [hotelPrices, priceLocale])
+  // Marker elements are built inside an imperative effect that must not re-run
+  // on every unrelated render, so the labels are read through a ref; the effect
+  // lists `priceLabels` as a dependency so arriving quotes still rebuild them.
+  const priceLabelsRef = useRef<Record<number, string>>(priceLabels)
+  priceLabelsRef.current = priceLabels
   const rawMapboxStyle = useSettingsStore(s => s.settings.mapbox_style || MAPBOX_DEFAULT_STYLE)
   const rawMaplibreStyle = useSettingsStore(s => s.settings.maplibre_style || '')
   const mapboxToken = useSettingsStore(s => s.settings.mapbox_access_token || '')
@@ -793,7 +806,7 @@ export function MapViewGL({
         const pck = place.google_place_id || place.osm_id || `${place.lat},${place.lng}`
         const photoUrl = (pck && photoUrls[pck]) || place.image_url || null
         const selected = place.id === selectedPlaceId
-        const el = createMarkerElement(place as Place & { category_color?: string; category_icon?: string }, photoUrl, orderNumbers, selected)
+        const el = createMarkerElement(place as Place & { category_color?: string; category_icon?: string }, photoUrl, orderNumbers, selected, priceLabelsRef.current[place.id] ?? null)
         el.addEventListener('click', (ev) => {
           ev.stopPropagation()
           // Clear the card right away — the flyTo that follows moves the marker
@@ -881,7 +894,7 @@ export function MapViewGL({
       map.off('zoomend', scheduleReconcile)
       map.off('idle', scheduleReconcile)
     }
-  }, [places, selectedPlaceId, dayOrderMap, photoUrls, mapReady, glProvider])
+  }, [places, selectedPlaceId, dayOrderMap, photoUrls, priceLabels, mapReady, glProvider])
 
   // Reconcile OSM "explore" POI markers (imperative, kept separate from the
   // planned-place markers so they don't cluster or get confused with them).

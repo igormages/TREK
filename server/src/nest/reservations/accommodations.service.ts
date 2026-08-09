@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { broadcast } from '../../websocket';
-import { canAccessTrip } from '../../db/database';
+import { canAccessTrip, db } from '../../db/database';
+import { getTripHotelPrices } from '../../services/hotelPriceService';
 import { checkPermission } from '../../services/permissions';
 import type { User } from '../../types';
 import * as dayService from '../../services/dayService';
@@ -30,6 +31,21 @@ export class AccommodationsService {
 
   list(tripId: string) {
     return dayService.listAccommodations(tripId);
+  }
+
+  /**
+   * Market rates for this trip's lodging, quoted for the nights it books.
+   *
+   * Read-only and gated by trip access alone: seeing what a hotel costs is not
+   * an edit, and a member who can open the map can already see where the trip
+   * sleeps.
+   */
+  prices(tripId: string, lang: string) {
+    const trip = db.prepare('SELECT user_id, currency FROM trips WHERE id = ?').get(Number(tripId)) as
+      | { user_id: number; currency: string | null }
+      | undefined;
+    if (!trip) return Promise.resolve({ prices: [], configured: false });
+    return getTripHotelPrices(tripId, trip.user_id, trip.currency || 'EUR', lang);
   }
 
   validateRefs(tripId: string, placeId?: number, startDayId?: number, endDayId?: number) {

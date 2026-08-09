@@ -8,6 +8,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import type { User } from '../../types';
@@ -59,6 +60,17 @@ export class AccommodationsController {
   list(@CurrentUser() user: User, @Param('tripId') tripId: string) {
     this.requireTrip(tripId, user);
     return { accommodations: this.accommodations.list(tripId) };
+  }
+
+  /**
+   * Nightly rates for this trip's lodging. Returns `configured: false` when no
+   * Travelpayouts token is set, so the map can stay silent rather than look
+   * broken on an instance that never enabled it.
+   */
+  @Get('prices')
+  prices(@CurrentUser() user: User, @Param('tripId') tripId: string, @Query('lang') lang?: string) {
+    this.requireTrip(tripId, user);
+    return this.accommodations.prices(tripId, lang || 'en');
   }
 
   @Post()

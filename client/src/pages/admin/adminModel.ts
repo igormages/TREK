@@ -30,6 +30,19 @@ export interface OidcConfig {
   discovery_url: string
 }
 
+/**
+ * Travelpayouts credentials behind the accommodation map's price pills.
+ * `token` is what the operator just typed; `token_set` is all the server ever
+ * discloses about the stored one.
+ */
+export interface TravelpayoutsConfig {
+  token: string
+  token_set: boolean
+  /** An env var overrides the stored token — worth saying, or a saved key looks ignored. */
+  token_from_env: boolean
+  marker: string
+}
+
 export interface UpdateInfo {
   update_available: boolean
   latest: string

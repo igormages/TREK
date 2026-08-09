@@ -184,7 +184,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     trip, days, places, assignments, packingItems, todoItems, categories, reservations, budgetItems, files,
     selectedDayId, isLoading, tripActions, can, canUploadFiles,
     pushUndo, undo, canUndo, lastActionLabel, handleUndo,
-    enabledAddons, collabFeatures, tripAccommodations, setTripAccommodations,
+    enabledAddons, collabFeatures, tripAccommodations, setTripAccommodations, hotelPrices,
     allowedFileTypes, tripMembers, setTripMembers, refreshMembers, loadAccommodations,
     TRANSPORT_TYPES, TRIP_TABS, activeTab, setActiveTab, handleTabChange,
     leftWidth, rightWidth, leftCollapsed, rightCollapsed, setLeftCollapsed, setRightCollapsed, startResizeLeft, startResizeRight,
@@ -317,6 +317,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
             <MapView
               tripId={tripId}
               places={mapPlaces}
+              hotelPrices={hotelPrices}
               dayPlaces={dayPlaces}
               route={route}
               showTransitRoutes={routeShown}

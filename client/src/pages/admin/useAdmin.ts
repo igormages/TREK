@@ -7,7 +7,7 @@ import { useAddonStore } from '../../store/addonStore'
 import { useTranslation } from '../../i18n'
 import { getApiErrorMessage } from '../../types'
 import { useToast } from '../../components/shared/Toast'
-import type { AdminUser, AdminStats, OidcConfig, UpdateInfo } from './adminModel'
+import type { AdminUser, AdminStats, OidcConfig, TravelpayoutsConfig, UpdateInfo } from './adminModel'
 
 /**
  * Admin page logic — owns every admin data slice (users, stats, invites, auth
@@ -55,6 +55,10 @@ export function useAdmin() {
   // OIDC config
   const [oidcConfig, setOidcConfig] = useState<OidcConfig>({ issuer: '', client_id: '', client_secret: '', client_secret_set: false, display_name: '', discovery_url: '' })
   const [savingOidc, setSavingOidc] = useState<boolean>(false)
+
+  // Travelpayouts — hotel prices on the accommodation map
+  const [travelpayouts, setTravelpayouts] = useState<TravelpayoutsConfig>({ token: '', token_set: false, token_from_env: false, marker: '' })
+  const [savingTravelpayouts, setSavingTravelpayouts] = useState<boolean>(false)
 
   // Auth toggles
   const [passwordLogin, setPasswordLogin] = useState<boolean>(true)
@@ -119,6 +123,9 @@ export function useAdmin() {
     loadAppConfig()
     loadApiKeys()
     adminApi.getOidc().then(setOidcConfig).catch(() => {})
+    // The stored token never comes back — only whether there is one — so the
+    // input stays empty and the placeholder does the telling.
+    adminApi.getTravelpayouts().then(d => setTravelpayouts({ token: '', token_set: !!d.token_set, token_from_env: !!d.token_from_env, marker: d.marker || '' })).catch(() => {})
     adminApi.checkVersion().then(data => {
       if (data.update_available) setUpdateInfo(data)
     }).catch(() => {})
@@ -378,6 +385,7 @@ export function useAdmin() {
     placesDetailsEnabled, setPlacesDetailsEnabledState,
     collabFeatures, setCollabFeatures,
     oidcConfig, setOidcConfig, savingOidc, setSavingOidc,
+    travelpayouts, setTravelpayouts, savingTravelpayouts, setSavingTravelpayouts,
     passwordLogin, setPasswordLogin, passwordRegistration, setPasswordRegistration,
     oidcLogin, setOidcLogin, oidcRegistration, setOidcRegistration,
     envOverrideOidcOnly, setEnvOverrideOidcOnly, oidcConfigured, setOidcConfigured,

@@ -25,6 +25,9 @@ export class AdminService {
   savePermissions(permissions: Parameters<typeof svc.savePermissions>[0]) { return svc.savePermissions(permissions); }
   getAuditLog(query: { limit?: string; offset?: string }) { return svc.getAuditLog(query); }
 
+  getTravelpayoutsSettings() { return svc.getTravelpayoutsSettings(); }
+  updateTravelpayoutsSettings(body: unknown) { return svc.updateTravelpayoutsSettings(body as Parameters<typeof svc.updateTravelpayoutsSettings>[0]); }
+
   getOidcSettings() { return svc.getOidcSettings(); }
   updateOidcSettings(body: unknown) { return svc.updateOidcSettings(body as Parameters<typeof svc.updateOidcSettings>[0]); }
   saveDemoBaseline() { return svc.saveDemoBaseline(); }
