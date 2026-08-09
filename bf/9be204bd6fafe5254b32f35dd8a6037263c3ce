@@ -1,0 +1,22 @@
+client/src/pages/AtlasPage.tsx
+  s_8a7b0e6d96c318::t_686a8179c76c66 626
+  s_8a7b0e6d96c318::t_693063c38bac7f 624-625
+  s_8a7b0e6d96c318::t_3f24e0a3d4fdae 1
+  s_8a7b0e6d96c318::t_462a4560f2272a 742
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.21",
+  "base_commit_sha": "bf9be204bd6fafe5254b32f35dd8a6037263c3ce",
+  "prompts": {},
+  "sessions": {
+    "s_8a7b0e6d96c318": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e617c4e7-5615-43c0-9fa3-58e22688ff0b",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Igor Magès <igor@mages.pro>"
+    }
+  }
+}
